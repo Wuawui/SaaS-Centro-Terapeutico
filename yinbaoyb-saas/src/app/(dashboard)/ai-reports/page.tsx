@@ -907,28 +907,52 @@ export default function AIReportsPage() {
       {/* Global CSS for Native Print formatting */}
       <style jsx global>{`
         @media print {
-          body {
+          /* Reset parent containers */
+          html, body, main, div.min-h-screen, div.transition-all, main.mx-auto {
             background: white !important;
             color: black !important;
-            font-family: system-ui, -apple-system, sans-serif !important;
-          }
-          /* Hide screen elements */
-          aside, nav, header, button, .print\\:hidden, .no-print, .space-y-6 > :not(.print-sheet):not(.print-container) {
-            display: none !important;
-          }
-          main, .print-container, .print-sheet {
+            padding: 0 !important;
+            margin: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: transparent !important;
+            position: static !important;
+            display: block !important;
             box-shadow: none !important;
-            border: none !important;
+            transform: none !important;
+            float: none !important;
           }
+          
+          /* Override the left padding offset caused by the Sidebar */
+          div.lg\\:pl-72, .lg\\:pl-72 {
+            padding-left: 0 !important;
+            margin-left: 0 !important;
+          }
+
+          /* Hide screen-only components explicitly */
+          aside, nav, header, button, svg, [role="navigation"], .no-print, .print\\:hidden {
+            display: none !important;
+          }
+
+          /* Printable document formatting */
+          .print-sheet {
+            background: white !important;
+            color: black !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 1.5cm 2cm !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            display: block !important;
+            margin: 0 !important;
+            position: static !important;
+          }
+
           .avoid-page-break {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
+
+          /* Clean textarea / inputs printing */
           textarea, input {
             border: none !important;
             box-shadow: none !important;
@@ -940,6 +964,9 @@ export default function AIReportsPage() {
             width: 100% !important;
             overflow: hidden !important;
             color: black !important;
+            font-family: inherit !important;
+            font-size: inherit !important;
+            line-height: inherit !important;
           }
         }
       `}</style>
