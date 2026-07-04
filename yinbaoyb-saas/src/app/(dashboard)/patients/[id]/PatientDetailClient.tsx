@@ -117,6 +117,12 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
     email: patient.email || "", reason_for_consultation: patient.reason_for_consultation || "",
     primary_diagnosis: patient.primary_diagnosis || "", primary_diagnosis_desc: patient.primary_diagnosis_desc || "",
     current_medication: patient.current_medication || "", medical_history: patient.medical_history || "",
+    birth_date: patient.birth_date || "", gender: patient.gender || "", address: patient.address || "",
+    emergency_contact_name: patient.emergency_contact_name || "",
+    emergency_contact_relation: patient.emergency_contact_relation || "",
+    emergency_contact_phone: patient.emergency_contact_phone || "",
+    insurance_provider: patient.insurance_provider || "",
+    insurance_policy: patient.insurance_policy || "",
   });
 
   useEffect(() => { loadData(); }, []);
@@ -151,6 +157,12 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
       email: form.email || null, reason_for_consultation: form.reason_for_consultation || null,
       primary_diagnosis: form.primary_diagnosis || null, primary_diagnosis_desc: form.primary_diagnosis_desc || null,
       current_medication: form.current_medication || null, medical_history: form.medical_history || null,
+      birth_date: form.birth_date || null, gender: form.gender || null, address: form.address || null,
+      emergency_contact_name: form.emergency_contact_name || null,
+      emergency_contact_relation: form.emergency_contact_relation || null,
+      emergency_contact_phone: form.emergency_contact_phone || null,
+      insurance_provider: form.insurance_provider || null,
+      insurance_policy: form.insurance_policy || null,
     }).eq("id", patient.id);
     if (err) { setError(err.message); setSaving(false); return; }
     setEditing(false); setSaving(false); window.location.reload();
@@ -441,17 +453,64 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
                 <button onClick={() => setEditing(!editing)} className="text-sm text-indigo-600 hover:text-indigo-700">{editing ? "Cancelar" : "Editar"}</button>
               </div>
               {editing ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label><input name="first_name" required value={form.first_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellidos *</label><input name="last_name" required value={form.last_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Documento</label><input name="document_number" value={form.document_number} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input name="phone" value={form.phone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input name="email" value={form.email} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Motivo de consulta</label><textarea name="reason_for_consultation" value={form.reason_for_consultation} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico (CIE-10)</label><input name="primary_diagnosis" value={form.primary_diagnosis} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label><input name="primary_diagnosis_desc" value={form.primary_diagnosis_desc} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Medicación</label><textarea name="current_medication" value={form.current_medication} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                  <div className="md:col-span-2 flex justify-end gap-3 mt-2">
+                <div className="space-y-6">
+                  {/* Sección 1: Datos Personales */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-1 border-b border-gray-100">Datos Personales</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label><input name="first_name" required value={form.first_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellidos *</label><input name="last_name" required value={form.last_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Documento</label><input name="document_number" value={form.document_number} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label><input type="date" name="birth_date" value={form.birth_date} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
+                        <select name="gender" value={form.gender} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                          <option value="">Selecciona...</option>
+                          <option value="M">Masculino</option>
+                          <option value="F">Femenino</option>
+                          <option value="O">Otro</option>
+                          <option value="X">No dice</option>
+                        </select>
+                      </div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input name="phone" value={form.phone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" name="email" value={form.email} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label><input name="address" value={form.address} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                    </div>
+                  </div>
+
+                  {/* Sección 2: Contacto de Emergencia */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-1 border-b border-gray-100">Contacto de Emergencia</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input name="emergency_contact_name" value={form.emergency_contact_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Relación / Vínculo</label><input name="emergency_contact_relation" value={form.emergency_contact_relation} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input name="emergency_contact_phone" value={form.emergency_contact_phone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                    </div>
+                  </div>
+
+                  {/* Sección 3: Información Clínica */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-1 border-b border-gray-100">Información Clínica</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Motivo de consulta</label><textarea name="reason_for_consultation" value={form.reason_for_consultation} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico (CIE-10)</label><input name="primary_diagnosis" value={form.primary_diagnosis} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Descripción Diagnóstico</label><input name="primary_diagnosis_desc" value={form.primary_diagnosis_desc} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Medicación</label><textarea name="current_medication" value={form.current_medication} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Historial Clínico / Antecedentes</label><textarea name="medical_history" value={form.medical_history} onChange={handleChange} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                    </div>
+                  </div>
+
+                  {/* Sección 4: Seguro Médico */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-1 border-b border-gray-100">Seguro Médico</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Aseguradora</label><input name="insurance_provider" value={form.insurance_provider} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-1">Póliza</label><input name="insurance_policy" value={form.insurance_policy} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                    </div>
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
                     <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50">{saving ? "Guardando..." : "Guardar"}</button>
                   </div>
