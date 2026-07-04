@@ -10,7 +10,7 @@ import ClinicalNoteCard from "@/components/clinical/ClinicalNoteCard";
 
 interface Patient { id: string; first_name: string; last_name: string; date_of_birth: string | null; phone: string | null; email: string | null; status: string; reason_for_consultation: string | null; medical_history: string | null; active: boolean; }
 interface Appointment { id: string; date: string; start_time: string; end_time: string; type: string; status: string; notes: string | null; }
-interface ClinicalNote { id: string; format: string; content: string; signed: boolean; created_at: string; }
+interface ClinicalNote { id: string; format: string; content: string; signed: boolean; created_at: string; profiles?: { first_name: string; last_name: string } | null; }
 interface ScaleResult { id: string; scale_type: string; total_score: number; risk_alert: boolean; applied_at: string; }
 
 const typeLabels: Record<string, string> = { individual: "Individual", grupal: "Grupal", taller: "Taller", evaluacion: "Evaluación", supervision: "Supervisión" };
@@ -115,7 +115,7 @@ export default function TherapistPatientDetailPage() {
         setEvalFile(null);
         setUploadingEval(false);
         // Reload notes
-        const { data } = await supabase.from("clinical_notes").select("id, format, content, signed, created_at").eq("tenant_id", prof!.tenant_id).eq("patient_id", params.id as string).eq("therapist_id", user!.id).order("created_at", { ascending: false }).limit(20);
+        const { data } = await supabase.from("clinical_notes").select("id, format, content, signed, created_at, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("tenant_id", prof!.tenant_id).eq("patient_id", params.id as string).eq("therapist_id", user!.id).order("created_at", { ascending: false }).limit(20);
         setNotes((data || []) as ClinicalNote[]);
       };
       reader.onerror = () => {
@@ -184,7 +184,7 @@ export default function TherapistPatientDetailPage() {
         setReportFile(null);
         setUploadingReport(false);
         // Reload notes
-        const { data } = await supabase.from("clinical_notes").select("id, format, content, signed, created_at").eq("tenant_id", prof!.tenant_id).eq("patient_id", params.id as string).eq("therapist_id", user!.id).order("created_at", { ascending: false }).limit(20);
+        const { data } = await supabase.from("clinical_notes").select("id, format, content, signed, created_at, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("tenant_id", prof!.tenant_id).eq("patient_id", params.id as string).eq("therapist_id", user!.id).order("created_at", { ascending: false }).limit(20);
         setNotes((data || []) as ClinicalNote[]);
       };
       reader.onerror = () => {
@@ -249,7 +249,7 @@ export default function TherapistPatientDetailPage() {
 
       const [aptRes, notesRes, scalesRes] = await Promise.all([
         supabase.from("appointments").select("id, date, start_time, end_time, type, status, notes").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).eq("therapist_id", user.id).order("date", { ascending: false }).limit(20),
-        supabase.from("clinical_notes").select("id, format, content, signed, created_at").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).eq("therapist_id", user.id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("clinical_notes").select("id, format, content, signed, created_at, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).eq("therapist_id", user.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("scale_results").select("id, scale_type, total_score, risk_alert, applied_at").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).order("applied_at", { ascending: false }).limit(10),
       ]);
       setAppointments((aptRes.data || []) as Appointment[]);
@@ -284,7 +284,7 @@ export default function TherapistPatientDetailPage() {
     setNoteForm({ tareas: "", observaciones: "", resultados: "", recomendaciones: "" });
     setSaving(false);
     // Reload notes
-    const { data } = await supabase.from("clinical_notes").select("id, format, content, signed, created_at").eq("tenant_id", prof!.tenant_id).eq("patient_id", params.id as string).eq("therapist_id", user!.id).order("created_at", { ascending: false }).limit(20);
+    const { data } = await supabase.from("clinical_notes").select("id, format, content, signed, created_at, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("tenant_id", prof!.tenant_id).eq("patient_id", params.id as string).eq("therapist_id", user!.id).order("created_at", { ascending: false }).limit(20);
     setNotes((data || []) as ClinicalNote[]);
   }
 
@@ -419,6 +419,7 @@ export default function TherapistPatientDetailPage() {
               content={note.content}
               signed={note.signed}
               createdAt={note.created_at}
+              therapistName={note.profiles ? `${note.profiles.first_name} ${note.profiles.last_name}` : undefined}
             />
           ))}
         </div>

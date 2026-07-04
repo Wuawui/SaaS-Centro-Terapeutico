@@ -11,7 +11,7 @@ interface TherapistProfile { id: string; first_name: string; last_name: string }
 interface Therapist { id: string; profiles: TherapistProfile | null }
 
 interface ScaleResult { id: string; scale_type: string; total_score: number; risk_alert: boolean; completed_at: string }
-interface ClinicalNote { id: string; format: string; signed: boolean; created_at: string; subjective?: string; content?: string }
+interface ClinicalNote { id: string; format: string; signed: boolean; created_at: string; subjective?: string; content?: string; profiles?: { first_name: string; last_name: string } | null }
 interface Appointment { id: string; type: string; status: string; date: string; start_time: string; end_time: string }
 
 interface Patient {
@@ -134,7 +134,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
     const { data: s } = await supabase.from("scale_results").select("id, scale_type, total_score, risk_alert, completed_at").eq("patient_id", pid).order("completed_at", { ascending: true });
     if (s) setScaleResults(s as ScaleResult[]);
 
-    const { data: n } = await supabase.from("clinical_notes").select("id, format, signed, created_at, subjective, content").eq("patient_id", pid).order("created_at", { ascending: false }).limit(50);
+    const { data: n } = await supabase.from("clinical_notes").select("id, format, signed, created_at, subjective, content, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("patient_id", pid).order("created_at", { ascending: false }).limit(50);
     if (n) setClinicalNotes(n as ClinicalNote[]);
 
     const { data: a } = await supabase.from("appointments").select("id, type, status, date, start_time, end_time").eq("patient_id", pid).eq("tenant_id", tid || "").order("date", { ascending: false }).limit(10);
@@ -576,6 +576,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
                 content={n.content || n.subjective || "Sin contenido"}
                 signed={n.signed}
                 createdAt={n.created_at}
+                therapistName={n.profiles ? `${n.profiles.first_name} ${n.profiles.last_name}` : undefined}
               />
             ))}
           </div>

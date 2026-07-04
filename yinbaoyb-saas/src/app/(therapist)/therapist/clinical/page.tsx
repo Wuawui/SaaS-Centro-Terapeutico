@@ -18,6 +18,7 @@ interface ClinicalNote {
   signed: boolean;
   created_at: string;
   patients: { first_name: string; last_name: string } | null;
+  profiles?: { first_name: string; last_name: string } | null;
 }
 
 export default function TherapistClinicalPage() {
@@ -44,7 +45,7 @@ export default function TherapistClinicalPage() {
     setLoading(true);
 
     let query = supabase.from("clinical_notes")
-      .select("id, patient_id, format, content, signed, created_at, patients!clinical_notes_patient_id_fkey(first_name, last_name)")
+      .select("id, patient_id, format, content, signed, created_at, patients!clinical_notes_patient_id_fkey(first_name, last_name), profiles!clinical_notes_therapist_id_fkey(first_name, last_name)")
       .eq("tenant_id", tenantId).eq("therapist_id", user.id)
       .order("created_at", { ascending: false }).limit(50);
     if (filter !== "all" && filter !== "unsigned") query = query.eq("format", filter.toUpperCase());
@@ -320,6 +321,7 @@ export default function TherapistClinicalPage() {
                 signed={note.signed}
                 createdAt={note.created_at}
                 patientName={pName}
+                therapistName={note.profiles ? `${note.profiles.first_name} ${note.profiles.last_name}` : undefined}
                 onSign={handleSign}
               />
             );

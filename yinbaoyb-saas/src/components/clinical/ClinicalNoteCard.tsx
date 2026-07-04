@@ -21,6 +21,7 @@ interface ClinicalNoteCardProps {
   signed: boolean;
   createdAt: string;
   patientName?: string;
+  therapistName?: string;
   onSign?: (id: string) => void | Promise<void>;
 }
 
@@ -47,6 +48,7 @@ export default function ClinicalNoteCard({
   signed,
   createdAt,
   patientName,
+  therapistName,
   onSign
 }: ClinicalNoteCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -124,6 +126,13 @@ export default function ClinicalNoteCard({
             <FileText className="h-3 w-3" />
             {formatLabel}
           </span>
+
+          {/* Therapist Info */}
+          {therapistName && (
+            <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+              <span className="text-xs font-medium text-slate-500">👨‍⚕️ {therapistName}</span>
+            </div>
+          )}
 
           {/* Patient Info (If global search dashboard) */}
           {patientName && (

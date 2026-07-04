@@ -16,6 +16,7 @@ interface ClinicalNote {
   data: string | null; mood: string | null; content: string | null;
   tasks_assigned: string | null; next_objective: string | null;
   progress_score: number | null; signed: boolean; created_at: string;
+  profiles?: { first_name: string; last_name: string } | null;
 }
 interface ScaleResult {
   id: string; patient_id: string; scale_id: string; total_score: number;
@@ -92,7 +93,7 @@ export default function ClinicalPage() {
 
   async function loadPatientData(patientId: string) {
     const [notesRes, scalesRes] = await Promise.all([
-      supabase.from("clinical_notes").select("*").eq("patient_id", patientId).order("created_at", { ascending: false }).limit(20),
+      supabase.from("clinical_notes").select("*, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("patient_id", patientId).order("created_at", { ascending: false }).limit(20),
       supabase.from("scale_results").select("id, patient_id, scale_id, total_score, risk_alert, notes, completed_at").eq("patient_id", patientId).order("completed_at", { ascending: false }).limit(20),
     ]);
     setPatientNotes(notesRes.data || []);
@@ -305,6 +306,7 @@ export default function ClinicalPage() {
                     <div key={i} className="bg-white rounded-xl border border-gray-200 p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${cfg.color}`}>{cfg.icon} {cfg.label}</span>
+                        {n.profiles && <span className="text-xs text-gray-500">👨‍⚕️ {n.profiles.first_name} {n.profiles.last_name}</span>}
                         {n.signed && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">✓ Firmada</span>}
                         {n.progress_score && <span className={`text-xs font-medium ${n.progress_score >= 7 ? "text-green-600" : n.progress_score >= 4 ? "text-yellow-600" : "text-red-600"}`}>Progreso: {n.progress_score}/10</span>}
                         <span className="text-xs text-gray-400 ml-auto">{new Date(n.created_at).toLocaleDateString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
