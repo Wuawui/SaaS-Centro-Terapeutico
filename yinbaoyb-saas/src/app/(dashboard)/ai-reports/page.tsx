@@ -85,6 +85,8 @@ export default function AIReportsPage() {
   const [addressVal, setAddressVal] = useState("");
   const [representativeVal, setRepresentativeVal] = useState("");
   const [customAgeVal, setCustomAgeVal] = useState("");
+  const [centerNameVal, setCenterNameVal] = useState("Centro Terapéutico Logros");
+  const [centerSubtitleVal, setCenterSubtitleVal] = useState("Centro Terapéutico Integral");
 
   // Load active patients for selector
   const loadPatients = useCallback(async () => {
@@ -258,6 +260,7 @@ export default function AIReportsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="no-print space-y-6">
       {/* Screen Header (Hidden on Print) */}
       <div className="flex items-center justify-between print:hidden">
         <div>
@@ -390,6 +393,24 @@ export default function AIReportsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
+                <div>
+                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Nombre del Centro</label>
+                  <input 
+                    type="text"
+                    value={centerNameVal}
+                    onChange={e => setCenterNameVal(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Subtítulo del Centro</label>
+                  <input 
+                    type="text"
+                    value={centerSubtitleVal}
+                    onChange={e => setCenterSubtitleVal(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
                 <div className="md:col-span-2">
                   <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Dirección del menor</label>
                   <input 
@@ -435,6 +456,7 @@ export default function AIReportsPage() {
           </div>
         </div>
       )}
+      </div>
 
       {/* REPORT PRINT VIEW & EDITOR STACK */}
       {report && selectedPatient && (
@@ -458,10 +480,10 @@ export default function AIReportsPage() {
           <div className="bg-white text-black p-8 md:p-16 border border-slate-200 shadow-xl rounded-3xl max-w-[900px] mx-auto print-sheet font-sans">
             
             {/* Page Header (Logo & Areas) */}
-            <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-4 mb-6">
+            <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-4 mb-6 font-sans">
               <div className="flex flex-col">
-                <span className="text-indigo-950 font-extrabold text-2xl tracking-wider font-outfit">LOGROS</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Centro Terapéutico Integral</span>
+                <span className="text-indigo-950 font-extrabold text-2xl tracking-wider font-outfit uppercase">{centerNameVal}</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{centerSubtitleVal}</span>
               </div>
               <div className="text-right text-[10px] text-slate-700 italic leading-snug">
                 <p>Estimulación Temprana</p>
@@ -857,52 +879,29 @@ export default function AIReportsPage() {
                     className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
                   />
                 </div>
-              </div>
             </div>
-
-            {/* SIGNATURE BLOCK */}
-            <div className="mt-16 pt-8 border-t border-slate-250 avoid-page-break">
-              <div className="flex flex-col items-center justify-center text-center text-xs space-y-3">
-                
-                {/* Security QR/Time Stamp Simulator */}
-                <div className="flex items-center gap-2 border border-green-200 bg-green-50/60 p-2 rounded-lg text-[10px] text-green-800 leading-snug">
-                  <div className="w-8 h-8 bg-green-850 flex items-center justify-center text-white font-bold rounded text-lg flex-shrink-0">✓</div>
-                  <div className="text-left font-mono">
-                    <p className="font-bold">Mirella Sugei Moran Parreño</p>
-                    <p className="text-[9px] text-green-600">Firma Certificada · Centro Logros</p>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <div className="w-56 border-b border-slate-350 mx-auto mb-1.5" />
-                  <p className="font-bold text-slate-900 uppercase">Mirella Morán Parreño</p>
-                  <p className="text-slate-500">Lic. En Terapia Ocupacional</p>
-                  <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase font-outfit">Centro Logros</p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Screen Only Credit Banner */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 rounded-2xl p-4 border border-slate-150 print:hidden max-w-[900px] mx-auto">
-            <div className="text-[10px] text-slate-400 max-w-lg leading-relaxed font-semibold">
-              <span className="font-bold text-indigo-655 flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                Informe de Proceso Terapéutico optimizado por IA local
-              </span>
-              <p className="mt-0.5">El reporte compila el plan y los objetivos específicos basados en el historial. Recuerda que al imprimir o guardar en PDF, todos los campos se integran de forma limpia y transparente sin bordes ni controles de formulario.</p>
-            </div>
-            <button 
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 flex-shrink-0"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              Imprimir / Descargar PDF
-            </button>
           </div>
         </div>
-      )}
+
+        {/* Screen Only Credit Banner */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 rounded-2xl p-4 border border-slate-150 print:hidden max-w-[900px] mx-auto">
+          <div className="text-[10px] text-slate-400 max-w-lg leading-relaxed font-semibold">
+            <span className="font-bold text-indigo-655 flex items-center gap-1">
+              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+              Informe de Proceso Terapéutico optimizado por IA local
+            </span>
+            <p className="mt-0.5">El reporte compila el plan y los objetivos específicos basados en el historial. Recuerda que al imprimir o guardar en PDF, todos los campos se integran de forma limpia y transparente sin bordes ni controles de formulario.</p>
+          </div>
+          <button 
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 flex-shrink-0"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Imprimir / Descargar PDF
+          </button>
+        </div>
+      </div>
+    )}
 
       {/* Global CSS for Native Print formatting */}
       <style jsx global>{`
@@ -920,6 +919,8 @@ export default function AIReportsPage() {
             box-shadow: none !important;
             transform: none !important;
             float: none !important;
+            height: auto !important;
+            min-height: 0 !important;
           }
           
           /* Override the left padding offset caused by the Sidebar */
