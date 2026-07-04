@@ -120,6 +120,10 @@ export default function TherapistClinicalPage() {
     : notes.filter(n => n.format?.toLowerCase() === filter);
 
   const searchedNotes = filtered.filter(n => {
+    const isEval = n.content?.trim().startsWith('{"type":"evaluacion"') ?? false;
+    const isRep = n.content?.trim().startsWith('{"type":"informe"') ?? false;
+    if (isEval || isRep) return false;
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const pName = n.patients

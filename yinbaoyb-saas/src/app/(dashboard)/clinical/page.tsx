@@ -165,9 +165,15 @@ export default function ClinicalPage() {
   // Escala info helper
   const getScaleInfo = (scaleId: string) => scales.find(s => s.id === scaleId);
 
+  const filteredNotes = patientNotes.filter(n => {
+    const isEval = n.content?.trim().startsWith('{"type":"evaluacion"') ?? false;
+    const isRep = n.content?.trim().startsWith('{"type":"informe"') ?? false;
+    return !isEval && !isRep;
+  });
+
   // Timeline unificado del paciente
   const timeline = [
-    ...patientNotes.map(n => ({ type: "note" as const, date: n.created_at, data: n })),
+    ...filteredNotes.map(n => ({ type: "note" as const, date: n.created_at, data: n })),
     ...patientScales.map(s => ({ type: "scale" as const, date: s.completed_at, data: s })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
