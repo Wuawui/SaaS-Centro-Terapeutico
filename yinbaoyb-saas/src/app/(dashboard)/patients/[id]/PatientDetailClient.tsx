@@ -55,8 +55,9 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
   const [scaleResults, setScaleResults] = useState<ScaleResult[]>([]);
   const [clinicalNotes, setClinicalNotes] = useState<ClinicalNote[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [statusConfirm, setStatusConfirm] = useState<string | null>(null);
   const [showTherapistSelect, setShowTherapistSelect] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState<string | null>(null);
 
   const isEvaluation = (content?: string) => {
     return content?.trim().startsWith('{"type":"evaluacion"') ?? false;
@@ -85,6 +86,20 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
       document.body.removeChild(link);
     } catch (e) {
       alert("Error al descargar el archivo");
+    }
+  };
+
+  const previewFile = (fileJsonStr: string) => {
+    try {
+      const fileObj = JSON.parse(fileJsonStr);
+      if (fileObj.file_data && fileObj.file_data.startsWith("data:application/pdf")) {
+        setPreviewUrl(fileObj.file_data);
+        setPreviewName(fileObj.file_name);
+      } else {
+        alert("La previsualización en pantalla está optimizada para archivos PDF");
+      }
+    } catch (e) {
+      alert("Error al previsualizar el archivo");
     }
   };
 
@@ -676,6 +691,11 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {isPdf && (
+                      <button onClick={() => item.content && previewFile(item.content)} className="px-3 py-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
+                        Previsualizar
+                      </button>
+                    )}
                     <button onClick={() => item.content && downloadFile(item.content)} className="px-3 py-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
                       Descargar
                     </button>
@@ -732,6 +752,11 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {isPdf && (
+                      <button onClick={() => item.content && previewFile(item.content)} className="px-3 py-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
+                        Previsualizar
+                      </button>
+                    )}
                     <button onClick={() => item.content && downloadFile(item.content)} className="px-3 py-1.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
                       Descargar
                     </button>
@@ -790,6 +815,36 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
           <AIEvolutionView patientId={patient.id} />
         )}
       </div>
+      {/* Modal de Previsualización de PDF */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-150 bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📄</span>
+                <h3 className="font-semibold text-gray-900 text-base md:text-lg truncate max-w-md md:max-w-xl">{previewName}</h3>
+              </div>
+              <button 
+                onClick={() => { setPreviewUrl(null); setPreviewName(null); }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Iframe */}
+            <div className="flex-1 bg-gray-100 relative">
+              <iframe 
+                src={previewUrl} 
+                className="w-full h-full border-0" 
+                title="Vista previa de documento"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
