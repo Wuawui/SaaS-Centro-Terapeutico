@@ -63,6 +63,54 @@ interface DetailedReport {
   reco_motores_escuela: string;
 }
 
+// Helper components for print/edit duality
+function PrintEditableTextarea({
+  value,
+  onChange,
+  className = "w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 bg-slate-50/20 focus:outline-none"
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) {
+  return (
+    <>
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className={`${className} print:hidden`}
+      />
+      <p className="hidden print:block whitespace-pre-wrap text-xs leading-relaxed text-slate-800">
+        {value}
+      </p>
+    </>
+  );
+}
+
+function PrintEditableInput({
+  value,
+  onChange,
+  className = "bg-transparent border-b border-dashed border-gray-300 w-full focus:outline-none font-semibold text-slate-800"
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) {
+  return (
+    <>
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className={`${className} print:hidden`}
+      />
+      <span className="hidden print:inline font-semibold text-slate-800">
+        {value}
+      </span>
+    </>
+  );
+}
+
 export default function AIReportsPage() {
   const supabase = createClient();
   const { tenantId } = useSession();
@@ -261,201 +309,201 @@ export default function AIReportsPage() {
   return (
     <div className="space-y-6">
       <div className="no-print space-y-6">
-      {/* Screen Header (Hidden on Print) */}
-      <div className="flex items-center justify-between print:hidden">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-outfit">Informes de Proceso Terapéutico</h1>
-          <p className="text-sm text-gray-500 mt-1">Genera informes oficiales estructurados con IA para Terapia Ocupacional y Lenguaje</p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-800 flex items-start gap-3 print:hidden">
-          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+        {/* Screen Header (Hidden on Print) */}
+        <div className="flex items-center justify-between print:hidden">
           <div>
-            <h4 className="font-bold">Error</h4>
-            <p className="text-xs text-red-700 mt-1">{error}</p>
-          </div>
-        </div>
-      )}
-
-      {successMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-800 flex items-start gap-3 print:hidden">
-          <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold">Proceso Exitoso</h4>
-            <p className="text-xs text-emerald-700 mt-1">{successMsg}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Selector & Config (Hidden on Print) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
-        {/* Selector de Pacientes */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-100 shadow-soft p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-4 font-outfit">🔍 Selección de Paciente</h2>
-          
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre..." 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
-            />
-          </div>
-
-          <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
-            {filteredPatients.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">No se encontraron pacientes activos</p>
-            ) : filteredPatients.map(p => (
-              <button 
-                key={p.id} 
-                onClick={() => handleSelectPatient(p)}
-                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold transition-all border ${
-                  selectedPatient?.id === p.id 
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-250/50 shadow-sm" 
-                    : "hover:bg-slate-50 text-slate-600 border-transparent"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-outfit text-sm">{p.first_name} {p.last_name}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
-                    p.status === "activo" ? "bg-green-50 text-green-700 border border-green-200" : "bg-yellow-50 text-yellow-700 border border-yellow-250"
-                  }`}>
-                    {p.status}
-                  </span>
-                </div>
-                {p.primary_diagnosis && (
-                  <p className="text-[10px] text-slate-400 mt-1 font-mono italic">Diagnóstico: {p.primary_diagnosis}</p>
-                )}
-              </button>
-            ))}
+            <h1 className="text-2xl font-bold text-gray-900 font-outfit">Informes de Proceso Terapéutico</h1>
+            <p className="text-sm text-gray-500 mt-1">Genera informes oficiales estructurados con IA para Terapia Ocupacional y Lenguaje</p>
           </div>
         </div>
 
-        {/* Ficha & Controles del Informe */}
-        <div className="lg:col-span-2 space-y-6">
-          {!selectedPatient ? (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-soft p-12 text-center flex flex-col items-center justify-center h-full min-h-[300px]">
-              <div className="text-5xl mb-4">📄</div>
-              <h2 className="text-base font-bold text-gray-900 font-outfit">Gestor de Informes de Evolución</h2>
-              <p className="text-xs text-gray-500 max-w-sm mt-1 leading-relaxed">
-                Selecciona un paciente a la izquierda para configurar su informe oficial y autocompletarlo con IA.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-soft p-6 space-y-6">
-              <div>
-                <span className="text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-650 px-2.5 py-1 rounded-full font-outfit">Datos del Informe</span>
-                <h2 className="text-lg font-bold text-slate-900 font-outfit mt-2">
-                  {selectedPatient.first_name} {selectedPatient.last_name}
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">{notesCount} notas clínicas de evolución encontradas</p>
-              </div>
-
-              {/* Patient and report configurations before generating */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold">
-                <div>
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Fecha de Informe</label>
-                  <input 
-                    type="date"
-                    value={reportDate}
-                    onChange={e => setReportDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Edad a mostrar</label>
-                  <input 
-                    type="text"
-                    value={customAgeVal}
-                    onChange={e => setCustomAgeVal(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Diagnóstico Clínico</label>
-                  <input 
-                    type="text"
-                    value={diagnosisVal}
-                    onChange={e => setDiagnosisVal(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Representante Legal</label>
-                  <input 
-                    type="text"
-                    value={representativeVal}
-                    onChange={e => setRepresentativeVal(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Nombre del Centro</label>
-                  <input 
-                    type="text"
-                    value={centerNameVal}
-                    onChange={e => setCenterNameVal(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Subtítulo del Centro</label>
-                  <input 
-                    type="text"
-                    value={centerSubtitleVal}
-                    onChange={e => setCenterSubtitleVal(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Dirección del menor</label>
-                  <input 
-                    type="text"
-                    value={addressVal}
-                    onChange={e => setAddressVal(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <p className="text-[10px] text-slate-400 leading-relaxed max-w-sm">
-                  Al presionar el botón de abajo, la inteligencia artificial procesará el historial clínico y redactará un informe técnico completo.
-                </p>
-                
-                <button
-                  onClick={handleGenerateReport}
-                  disabled={generating || notesCount === 0}
-                  className="bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold py-3 px-5 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10 cursor-pointer"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {generating ? "Generando Informe..." : "Auto-rellenar con IA"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Generating Loading State Screen (Hidden on Print) */}
-      {generating && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-soft print:hidden">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="relative h-12 w-12">
-              <div className="absolute inset-0 rounded-full border-4 border-indigo-50" />
-              <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
-            </div>
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-800 flex items-start gap-3 print:hidden">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-base font-bold text-slate-800 animate-pulse font-outfit">La IA está estructurando y analizando el historial clínico...</h3>
-              <p className="text-xs text-slate-400 mt-1">Este proceso compilará información de {notesCount} sesiones.</p>
+              <h4 className="font-bold">Error</h4>
+              <p className="text-xs text-red-700 mt-1">{error}</p>
             </div>
           </div>
+        )}
+
+        {successMsg && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-800 flex items-start gap-3 print:hidden">
+            <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-bold">Proceso Exitoso</h4>
+              <p className="text-xs text-emerald-700 mt-1">{successMsg}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Selector & Config (Hidden on Print) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+          {/* Selector de Pacientes */}
+          <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-100 shadow-soft p-5">
+            <h2 className="text-sm font-bold text-gray-900 mb-4 font-outfit">🔍 Selección de Paciente</h2>
+            
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Buscar por nombre..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
+              />
+            </div>
+
+            <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
+              {filteredPatients.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">No se encontraron pacientes activos</p>
+              ) : filteredPatients.map(p => (
+                <button 
+                  key={p.id} 
+                  onClick={() => handleSelectPatient(p)}
+                  className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold transition-all border ${
+                    selectedPatient?.id === p.id 
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-250/50 shadow-sm" 
+                      : "hover:bg-slate-50 text-slate-600 border-transparent"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-outfit text-sm">{p.first_name} {p.last_name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                      p.status === "activo" ? "bg-green-50 text-green-700 border border-green-200" : "bg-yellow-50 text-yellow-700 border border-yellow-250"
+                    }`}>
+                      {p.status}
+                    </span>
+                  </div>
+                  {p.primary_diagnosis && (
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono italic">Diagnóstico: {p.primary_diagnosis}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Ficha & Controles del Informe */}
+          <div className="lg:col-span-2 space-y-6">
+            {!selectedPatient ? (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-soft p-12 text-center flex flex-col items-center justify-center h-full min-h-[300px]">
+                <div className="text-5xl mb-4">📄</div>
+                <h2 className="text-base font-bold text-gray-900 font-outfit">Gestor de Informes de Evolución</h2>
+                <p className="text-xs text-gray-500 max-w-sm mt-1 leading-relaxed">
+                  Selecciona un paciente a la izquierda para configurar su informe oficial y autocompletarlo con IA.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-soft p-6 space-y-6">
+                <div>
+                  <span className="text-[10px] font-bold tracking-wider uppercase bg-indigo-50 text-indigo-650 px-2.5 py-1 rounded-full font-outfit">Datos del Informe</span>
+                  <h2 className="text-lg font-bold text-slate-900 font-outfit mt-2">
+                    {selectedPatient.first_name} {selectedPatient.last_name}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">{notesCount} notas clínicas de evolución encontradas</p>
+                </div>
+
+                {/* Patient and report configurations before generating */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold">
+                  <div>
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Fecha de Informe</label>
+                    <input 
+                      type="date"
+                      value={reportDate}
+                      onChange={e => setReportDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Edad a mostrar</label>
+                    <input 
+                      type="text"
+                      value={customAgeVal}
+                      onChange={e => setCustomAgeVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Diagnóstico Clínico</label>
+                    <input 
+                      type="text"
+                      value={diagnosisVal}
+                      onChange={e => setDiagnosisVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Representante Legal</label>
+                    <input 
+                      type="text"
+                      value={representativeVal}
+                      onChange={e => setRepresentativeVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Nombre del Centro</label>
+                    <input 
+                      type="text"
+                      value={centerNameVal}
+                      onChange={e => setCenterNameVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Subtítulo del Centro</label>
+                    <input 
+                      type="text"
+                      value={centerSubtitleVal}
+                      onChange={e => setCenterSubtitleVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-slate-400 uppercase text-[9px] tracking-wider block mb-1">Dirección del menor</label>
+                    <input 
+                      type="text"
+                      value={addressVal}
+                      onChange={e => setAddressVal(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <p className="text-[10px] text-slate-400 leading-relaxed max-w-sm">
+                    Al presionar el botón de abajo, la inteligencia artificial procesará el historial clínico y redactará un informe técnico completo.
+                  </p>
+                  
+                  <button
+                    onClick={handleGenerateReport}
+                    disabled={generating || notesCount === 0}
+                    className="bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold py-3 px-5 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10 cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {generating ? "Generando Informe..." : "Auto-rellenar con IA"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Generating Loading State Screen (Hidden on Print) */}
+        {generating && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-soft print:hidden">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="relative h-12 w-12">
+                <div className="absolute inset-0 rounded-full border-4 border-indigo-50" />
+                <div className="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800 animate-pulse font-outfit">La IA está estructurando y analizando el historial clínico...</h3>
+                <p className="text-xs text-slate-400 mt-1">Este proceso compilará información de {notesCount} sesiones.</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* REPORT PRINT VIEW & EDITOR STACK */}
@@ -501,11 +549,10 @@ export default function AIReportsPage() {
             {/* Fecha de Informe */}
             <div className="text-sm mb-6 flex items-center gap-1">
               <span className="font-bold text-slate-800">Fecha de Informe:</span>
-              <input 
-                type="text"
+              <PrintEditableInput 
                 value={reportDate}
-                onChange={e => setReportDate(e.target.value)}
-                className="border-b border-dashed border-gray-300 focus:outline-none focus:border-indigo-500 font-medium w-36 px-1 bg-transparent print:border-none"
+                onChange={setReportDate}
+                className="border-b border-dashed border-gray-300 focus:outline-none font-medium w-36 px-1 bg-transparent"
               />
             </div>
 
@@ -523,44 +570,37 @@ export default function AIReportsPage() {
                     <td className="py-2 text-slate-800">{formatBirthDate(selectedPatient.birth_date)}</td>
                     <th className="py-2 px-4 font-bold text-slate-700 w-24">Edad:</th>
                     <td className="py-2 text-slate-800">
-                      <input 
-                        type="text" 
+                      <PrintEditableInput 
                         value={customAgeVal} 
-                        onChange={e => setCustomAgeVal(e.target.value)} 
-                        className="bg-transparent border-b border-dashed border-gray-300 w-full focus:outline-none focus:border-indigo-500 print:border-none font-semibold text-slate-800"
+                        onChange={setCustomAgeVal} 
                       />
                     </td>
                   </tr>
                   <tr className="border-b border-slate-100">
                     <th className="py-2 pr-4 font-bold text-slate-700">Diagnóstico:</th>
                     <td className="py-2 text-slate-800" colSpan={3}>
-                      <input 
-                        type="text" 
+                      <PrintEditableInput 
                         value={diagnosisVal} 
-                        onChange={e => setDiagnosisVal(e.target.value)} 
-                        className="bg-transparent border-b border-dashed border-gray-300 w-full focus:outline-none focus:border-indigo-500 font-medium print:border-none text-slate-800"
+                        onChange={setDiagnosisVal} 
+                        className="bg-transparent border-b border-dashed border-gray-300 w-full focus:outline-none font-medium text-slate-800"
                       />
                     </td>
                   </tr>
                   <tr className="border-b border-slate-100">
                     <th className="py-2 pr-4 font-bold text-slate-700">Dirección:</th>
                     <td className="py-2 text-slate-800" colSpan={3}>
-                      <input 
-                        type="text" 
+                      <PrintEditableInput 
                         value={addressVal} 
-                        onChange={e => setAddressVal(e.target.value)} 
-                        className="bg-transparent border-b border-dashed border-gray-300 w-full focus:outline-none focus:border-indigo-500 print:border-none text-slate-800"
+                        onChange={setAddressVal} 
                       />
                     </td>
                   </tr>
                   <tr>
                     <th className="py-2 pr-4 font-bold text-slate-700">Representante:</th>
                     <td className="py-2 text-slate-800" colSpan={3}>
-                      <input 
-                        type="text" 
+                      <PrintEditableInput 
                         value={representativeVal} 
-                        onChange={e => setRepresentativeVal(e.target.value)} 
-                        className="bg-transparent border-b border-dashed border-gray-300 w-full focus:outline-none focus:border-indigo-500 font-semibold print:border-none text-slate-800"
+                        onChange={setRepresentativeVal} 
                       />
                     </td>
                   </tr>
@@ -571,10 +611,10 @@ export default function AIReportsPage() {
             {/* MOTIVO DE INFORME */}
             <div className="mb-8 avoid-page-break">
               <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">Motivo de Informe</h4>
-              <textarea
+              <PrintEditableTextarea
                 value={report.motivo_informe}
-                onChange={e => updateReportField("motivo_informe", e.target.value)}
-                className="w-full min-h-[80px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                onChange={val => updateReportField("motivo_informe", val)}
+                className="w-full min-h-[80px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
 
@@ -587,10 +627,10 @@ export default function AIReportsPage() {
               
               <div className="mb-4">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">Enfoque de Intervención Actual</h4>
-                <textarea
+                <PrintEditableTextarea
                   value={report.enfoque_to}
-                  onChange={e => updateReportField("enfoque_to", e.target.value)}
-                  className="w-full min-h-[90px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                  onChange={val => updateReportField("enfoque_to", val)}
+                  className="w-full min-h-[90px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
@@ -600,91 +640,91 @@ export default function AIReportsPage() {
                 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Perfil Sensorial y Modulación de la Atención:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_sensorial_to}
-                    onChange={e => updateReportField("plan_sensorial_to", e.target.value)}
-                    className="w-full min-h-[70px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_sensorial_to", val)}
+                    className="w-full min-h-[70px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Transiciones y Regulación Conductual:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_transiciones_to}
-                    onChange={e => updateReportField("plan_transiciones_to", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_transiciones_to", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Agarre y Grafomotricidad:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_grafomotricidad_to}
-                    onChange={e => updateReportField("plan_grafomotricidad_to", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_grafomotricidad_to", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Habilidades de Coordinación:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_coordinacion_to}
-                    onChange={e => updateReportField("plan_coordinacion_to", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_coordinacion_to", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Motricidad Gruesa y Planeamiento Motor:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_motricidad_gruesa_to}
-                    onChange={e => updateReportField("plan_motricidad_gruesa_to", e.target.value)}
-                    className="w-full min-h-[75px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_motricidad_gruesa_to", val)}
+                    className="w-full min-h-[75px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Seguimiento de Órdenes y Continuidad de la Tarea:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_cognitivo_to}
-                    onChange={e => updateReportField("plan_cognitivo_to", e.target.value)}
-                    className="w-full min-h-[70px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_cognitivo_to", val)}
+                    className="w-full min-h-[70px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Orientación y Conceptos Básicos:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_conceptos_to}
-                    onChange={e => updateReportField("plan_conceptos_to", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_conceptos_to", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Alimentación y Rutina de Mesa (AVD):</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_alimentacion_to}
-                    onChange={e => updateReportField("plan_alimentacion_to", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_alimentacion_to", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Vestido e Higiene (AVD):</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_vestido_to}
-                    onChange={e => updateReportField("plan_vestido_to", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_vestido_to", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Regulación Emocional y Conductual:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_regulacion_conductual_to}
-                    onChange={e => updateReportField("plan_regulacion_conductual_to", e.target.value)}
-                    className="w-full min-h-[65px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_regulacion_conductual_to", val)}
+                    className="w-full min-h-[65px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -696,10 +736,10 @@ export default function AIReportsPage() {
                   {report.objetivos_to?.map((obj, i) => (
                     <div key={i} className="flex gap-2 items-start">
                       <span className="text-xs font-bold mt-2 text-indigo-700 font-mono">•</span>
-                      <textarea
+                      <PrintEditableTextarea
                         value={obj}
-                        onChange={e => updateObjective("to", i, e.target.value)}
-                        className="w-full min-h-[45px] p-1.5 border border-slate-200 rounded-md text-xs leading-relaxed text-slate-700 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                        onChange={val => updateObjective("to", i, val)}
+                        className="w-full min-h-[45px] p-1.5 border border-slate-200 rounded-md text-xs leading-relaxed text-slate-700 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                     </div>
                   ))}
@@ -716,10 +756,10 @@ export default function AIReportsPage() {
 
               <div className="mb-4">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">Enfoque de Intervención Actual</h4>
-                <textarea
+                <PrintEditableTextarea
                   value={report.enfoque_tl}
-                  onChange={e => updateReportField("enfoque_tl", e.target.value)}
-                  className="w-full min-h-[90px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                  onChange={val => updateReportField("enfoque_tl", val)}
+                  className="w-full min-h-[90px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
@@ -729,64 +769,64 @@ export default function AIReportsPage() {
                 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Comprensión y Seguimiento de Instrucciones:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_instrucciones_tl}
-                    onChange={e => updateReportField("plan_instrucciones_tl", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_instrucciones_tl", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Intención Comunicativa y Pragmática:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_intencion_tl}
-                    onChange={e => updateReportField("plan_intencion_tl", e.target.value)}
-                    className="w-full min-h-[70px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_intencion_tl", val)}
+                    className="w-full min-h-[70px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Sistemas Aumentativos y Alternativos de Comunicación (SAAC):</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_saac_tl}
-                    onChange={e => updateReportField("plan_saac_tl", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_saac_tl", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Expansión de estructuras comunicativas:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_estructuras_tl}
-                    onChange={e => updateReportField("plan_estructuras_tl", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_estructuras_tl", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Memoria y atención de lo aprendido:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_memoria_tl}
-                    onChange={e => updateReportField("plan_memoria_tl", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_memoria_tl", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Atención conjunta:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_atencion_conjunta_tl}
-                    onChange={e => updateReportField("plan_atencion_conjunta_tl", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_atencion_conjunta_tl", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 mb-1">• Generalización de habilidades comunicativas:</h5>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.plan_generalizacion_tl}
-                    onChange={e => updateReportField("plan_generalizacion_tl", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("plan_generalizacion_tl", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -798,10 +838,10 @@ export default function AIReportsPage() {
                   {report.objetivos_tl?.map((obj, i) => (
                     <div key={i} className="flex gap-2 items-start">
                       <span className="text-xs font-bold mt-2 text-indigo-700 font-mono">•</span>
-                      <textarea
+                      <PrintEditableTextarea
                         value={obj}
-                        onChange={e => updateObjective("tl", i, e.target.value)}
-                        className="w-full min-h-[45px] p-1.5 border border-slate-200 rounded-md text-xs leading-relaxed text-slate-700 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                        onChange={val => updateObjective("tl", i, val)}
+                        className="w-full min-h-[45px] p-1.5 border border-slate-200 rounded-md text-xs leading-relaxed text-slate-700 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                     </div>
                   ))}
@@ -819,89 +859,90 @@ export default function AIReportsPage() {
               <div className="space-y-4">
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Ubicación en el Aula:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_ubicacion_escuela}
-                    onChange={e => updateReportField("reco_ubicacion_escuela", e.target.value)}
-                    className="w-full min-h-[55px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_ubicacion_escuela", val)}
+                    className="w-full min-h-[55px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Anticipación Visual Obligatoria:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_anticipacion_escuela}
-                    onChange={e => updateReportField("reco_anticipacion_escuela", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_anticipacion_escuela", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Segmentación de Instrucciones y Cierre de Tareas:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_segmentacion_escuela}
-                    onChange={e => updateReportField("reco_segmentacion_escuela", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_segmentacion_escuela", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Uso del Sistema Visual para Peticiones:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_sistema_visual_escuela}
-                    onChange={e => updateReportField("reco_sistema_visual_escuela", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_sistema_visual_escuela", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Gestión del Límite y Regulación Emocional:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_limites_escuela}
-                    onChange={e => updateReportField("reco_limites_escuela", e.target.value)}
-                    className="w-full min-h-[55px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_limites_escuela", val)}
+                    className="w-full min-h-[55px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Fomento de la Autonomía Sin Sustitución:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_autonomia_escuela}
-                    onChange={e => updateReportField("reco_autonomia_escuela", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_autonomia_escuela", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <h4 className="text-xs font-bold text-slate-800 mb-1">• Acompañamiento en Desafíos Motores:</h4>
-                  <textarea
+                  <PrintEditableTextarea
                     value={report.reco_motores_escuela}
-                    onChange={e => updateReportField("reco_motores_escuela", e.target.value)}
-                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500 print:border-none print:bg-white print:p-0 print:resize-none"
+                    onChange={val => updateReportField("reco_motores_escuela", val)}
+                    className="w-full min-h-[60px] p-2 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-750 bg-slate-50/20 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Screen Only Credit Banner */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 rounded-2xl p-4 border border-slate-150 print:hidden max-w-[900px] mx-auto">
-          <div className="text-[10px] text-slate-400 max-w-lg leading-relaxed font-semibold">
-            <span className="font-bold text-indigo-655 flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-              Informe de Proceso Terapéutico optimizado por IA local
-            </span>
-            <p className="mt-0.5">El reporte compila el plan y los objetivos específicos basados en el historial. Recuerda que al imprimir o guardar en PDF, todos los campos se integran de forma limpia y transparente sin bordes ni controles de formulario.</p>
           </div>
-          <button 
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 flex-shrink-0"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            Imprimir / Descargar PDF
-          </button>
+
+          {/* Screen Only Credit Banner */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 rounded-2xl p-4 border border-slate-150 print:hidden max-w-[900px] mx-auto">
+            <div className="text-[10px] text-slate-400 max-w-lg leading-relaxed font-semibold">
+              <span className="font-bold text-indigo-655 flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                Informe de Proceso Terapéutico optimizado por IA local
+              </span>
+              <p className="mt-0.5">El reporte compila el plan y los objetivos específicos basados en el historial. Recuerda que al imprimir o guardar en PDF, todos los campos se integran de forma limpia y transparente sin bordes ni controles de formulario.</p>
+            </div>
+            <button 
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 flex-shrink-0"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Imprimir / Descargar PDF
+            </button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
 
       {/* Global CSS for Native Print formatting */}
       <style jsx global>{`
@@ -953,21 +994,10 @@ export default function AIReportsPage() {
             break-inside: avoid !important;
           }
 
-          /* Clean textarea / inputs printing */
-          textarea, input {
-            border: none !important;
-            box-shadow: none !important;
-            outline: none !important;
-            background: transparent !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            resize: none !important;
-            width: 100% !important;
-            overflow: hidden !important;
-            color: black !important;
-            font-family: inherit !important;
-            font-size: inherit !important;
-            line-height: inherit !important;
+          /* Clean text rendering for printed fields */
+          p, span {
+            word-wrap: break-word !important;
+            white-space: pre-wrap !important;
           }
         }
       `}</style>
