@@ -138,7 +138,6 @@ export default function AIReportsPage() {
   const [profName, setProfName] = useState("Mirella Morán Parreño");
   const [profSpecialty, setProfSpecialty] = useState("Lic. En Terapia Ocupacional");
   const [profCenter, setProfCenter] = useState("LOGROS");
-  const [showDigitalStamp, setShowDigitalStamp] = useState(true);
   const [contactAddress, setContactAddress] = useState("San Eduardo Av Barcelona");
   const [contactPhone, setContactPhone] = useState("0998168551");
   const [contactInstagram, setContactInstagram] = useState("@centroterapeutico_logros");
@@ -505,16 +504,6 @@ export default function AIReportsPage() {
                       onChange={e => setProfCenter(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     />
-                  </div>
-                  <div className="flex items-center gap-2 mt-4">
-                    <input 
-                      type="checkbox"
-                      id="showStamp"
-                      checked={showDigitalStamp}
-                      onChange={e => setShowDigitalStamp(e.target.checked)}
-                      className="rounded text-indigo-650 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
-                    />
-                    <label htmlFor="showStamp" className="text-slate-700 text-xs cursor-pointer select-none">Mostrar Sello Digital QR</label>
                   </div>
 
                   <div className="md:col-span-2 mt-2 pt-2 border-t border-slate-100">
@@ -1027,17 +1016,6 @@ export default function AIReportsPage() {
 
               {/* Right Column: Signature Box */}
               <div className="flex flex-col items-center justify-center text-center space-y-3 w-full sm:w-auto">
-                {showDigitalStamp && (
-                  /* Security QR/Time Stamp Simulator */
-                  <div className="flex items-center gap-2 border border-green-200 bg-green-50/60 p-2 rounded-lg text-[10px] text-green-800 leading-snug">
-                    <div className="w-8 h-8 bg-green-800 flex items-center justify-center text-white font-bold rounded text-lg flex-shrink-0">✓</div>
-                    <div className="text-left font-mono">
-                      <p className="font-bold">{profName}</p>
-                      <p className="text-[9px] text-green-600">Firma Certificada · {profCenter}</p>
-                    </div>
-                  </div>
-                )}
-
                 <div className="pt-2">
                   <div className="w-56 border-b border-slate-350 mx-auto mb-1.5" />
                   <p className="font-bold text-slate-900 uppercase">{profName}</p>
