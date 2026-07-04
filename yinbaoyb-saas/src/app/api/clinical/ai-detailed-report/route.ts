@@ -327,7 +327,12 @@ ${notesContext}`;
     const resultText = aiData.choices?.[0]?.message?.content;
     if (!resultText) throw new Error("No content returned from AI");
 
-    const parsed = JSON.parse(resultText);
+    let cleanedText = resultText.trim();
+    if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText.replace(/^```[a-zA-Z]*\s*/, "").replace(/\s*```$/, "");
+    }
+
+    const parsed = JSON.parse(cleanedText);
     return NextResponse.json(parsed);
 
   } catch (err: any) {
