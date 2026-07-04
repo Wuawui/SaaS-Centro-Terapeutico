@@ -54,6 +54,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
   // Edit form
   const [form, setForm] = useState({ specialty: "", license_number: "", max_patients: 20, phone: "", therapeutic_approach: [] as string[], certifications: [] as string[] });
   const [approachInput, setApproachInput] = useState("");
+  const [customApproachText, setCustomApproachText] = useState("");
   const [certInput, setCertInput] = useState("");
 
   // Handover state
@@ -273,7 +274,13 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
   }
 
   const handleAddApproach = () => {
-    if (approachInput && !form.therapeutic_approach.includes(approachInput)) {
+    if (approachInput === "custom_option") {
+      if (customApproachText.trim() && !form.therapeutic_approach.includes(customApproachText.trim())) {
+        setForm({ ...form, therapeutic_approach: [...form.therapeutic_approach, customApproachText.trim()] });
+        setCustomApproachText("");
+        setApproachInput("");
+      }
+    } else if (approachInput && !form.therapeutic_approach.includes(approachInput)) {
       setForm({ ...form, therapeutic_approach: [...form.therapeutic_approach, approachInput] });
       setApproachInput("");
     }
@@ -417,9 +424,24 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Enfoque terapéutico</label>
                     <div className="flex gap-2 mb-2">
-                      <select value={approachInput} onChange={e => setApproachInput(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"><option value="">Seleccionar...</option>{Object.entries(approachLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+                      <select value={approachInput} onChange={e => { setApproachInput(e.target.value); if (e.target.value !== "custom_option") setCustomApproachText(""); }} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="">Seleccionar...</option>
+                        {Object.entries(approachLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        <option value="custom_option">Otro (escribir propio)...</option>
+                      </select>
                       <button type="button" onClick={handleAddApproach} className="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100">+</button>
                     </div>
+                    {approachInput === "custom_option" && (
+                      <div className="mb-3">
+                        <input 
+                          type="text" 
+                          value={customApproachText} 
+                          onChange={e => setCustomApproachText(e.target.value)} 
+                          placeholder="Escribe tu propio enfoque..." 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
+                        />
+                      </div>
+                    )}
                     {form.therapeutic_approach.length > 0 && (
                       <div className="flex flex-wrap gap-2">{form.therapeutic_approach.map(a => (
                         <span key={a} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-indigo-50 text-indigo-700 border border-indigo-200">{approachLabels[a] || a}<button type="button" onClick={() => setForm({...form, therapeutic_approach: form.therapeutic_approach.filter(x => x !== a)})} className="text-indigo-400 hover:text-indigo-700">✕</button></span>
