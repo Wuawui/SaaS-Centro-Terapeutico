@@ -55,6 +55,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
   const [scaleResults, setScaleResults] = useState<ScaleResult[]>([]);
   const [clinicalNotes, setClinicalNotes] = useState<ClinicalNote[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [statusConfirm, setStatusConfirm] = useState<string | null>(null);
   const [showTherapistSelect, setShowTherapistSelect] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
