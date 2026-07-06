@@ -275,6 +275,64 @@ export default function ParentSessionLogsPage() {
                 const tName = note.profiles ? `${note.profiles.first_name} ${note.profiles.last_name}` : "Terapeuta";
                 const initial = tName.charAt(0);
 
+                const isReport = note.content?.trim().startsWith('{"type":"informe"') || note.content?.trim().startsWith('{"type":"evaluacion"');
+                let fileData: any = null;
+                if (isReport) {
+                  try {
+                    fileData = JSON.parse(note.content || "");
+                  } catch (e) {}
+                }
+
+                if (isReport && fileData) {
+                  const formattedSize = fileData.file_size ? `${(fileData.file_size / 1024).toFixed(1)} KB` : "";
+                  const isPdf = fileData.file_name?.toLowerCase().endsWith(".pdf");
+                  return (
+                    <div key={note.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow transition-shadow flex flex-col md:flex-row gap-6">
+                      <div className="md:w-1/4 flex md:flex-col items-start gap-4 md:border-r md:border-gray-100 md:pr-6">
+                        <div className="h-10 w-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+                          {initial}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-bold text-gray-900 text-sm">{tName}</p>
+                          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Documento Compartido</p>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium pt-1">
+                            <Calendar className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                            <span>{formatDate(note.created_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex items-center justify-between bg-slate-50 border border-slate-200/60 rounded-xl p-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`h-10 w-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${isPdf ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
+                            {isPdf ? "PDF" : "DOC"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 text-sm truncate">{fileData.file_name}</p>
+                            <p className="text-xs text-gray-400">{formattedSize}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            try {
+                              const link = document.createElement("a");
+                              link.href = fileData.file_data;
+                              link.download = fileData.file_name;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            } catch (e) {
+                              alert("Error al descargar el archivo");
+                            }
+                          }}
+                          className="px-3.5 py-1.5 text-xs font-semibold text-emerald-600 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                        >
+                          Descargar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={note.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow transition-shadow flex flex-col md:flex-row gap-6">
                     {/* Sidebar Card Metadata */}
