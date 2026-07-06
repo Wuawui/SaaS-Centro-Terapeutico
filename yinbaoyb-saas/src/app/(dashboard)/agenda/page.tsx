@@ -79,6 +79,7 @@ export default function AgendaPage() {
   // Edit appointment
   const [editApt, setEditApt] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState("");
+  const [showWeeklyGrid, setShowWeeklyGrid] = useState(false);
 
   useEffect(() => { loadData(); }, [selectedDate, filterTherapist]);
 
@@ -378,6 +379,166 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
     if (win) { win.document.write(html); win.document.close(); }
   }
 
+  // Helper to determine therapy area code (TO, TL, ET, Con, etc.) based on therapist and notes
+  const getTherapyBadge = (apt: Appointment) => {
+    const notesText = (apt.notes || "").toLowerCase();
+    if (notesText.includes("[to]") || notesText.includes("terapia ocupacional") || notesText.includes("ocupacional")) return "TO";
+    if (notesText.includes("[tl]") || notesText.includes("lenguaje") || notesText.includes("habla")) return "TL";
+    if (notesText.includes("[et]") || notesText.includes("temprana") || notesText.includes("estimulacion")) return "ET";
+    if (notesText.includes("[con]") || notesText.includes("consulta")) return "Con";
+
+    const tSpecialty = (apt.profiles as any)?.specialty?.toLowerCase() || "";
+    if (tSpecialty.includes("ocupacional") || tSpecialty.includes("to")) return "TO";
+    if (tSpecialty.includes("lenguaje") || tSpecialty.includes("habla") || tSpecialty.includes("tl")) return "TL";
+    if (tSpecialty.includes("temprana") || tSpecialty.includes("estimulacion")) return "ET";
+    if (tSpecialty.includes("psicolog") || tSpecialty.includes("conductual")) return "Psi";
+
+    if (apt.profiles) {
+      const fn = (apt.profiles as any).first_name || "";
+      const ln = (apt.profiles as any).last_name || "";
+      if (fn && ln) return `${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase();
+    }
+    return "TO";
+  };
+
+  // Helper to get color classes for React UI badges
+  const getTherapyBadgeColor = (badge: string) => {
+    const b = badge.toUpperCase();
+    if (b === "TO") return "bg-cyan-100 text-cyan-800 border-cyan-200";
+    if (b === "TL") return "bg-amber-100 text-amber-800 border-amber-250";
+    if (b === "ET") return "bg-purple-100 text-purple-800 border-purple-250";
+    if (b === "CON") return "bg-emerald-100 text-emerald-800 border-emerald-250";
+    if (b === "PSI") return "bg-pink-100 text-pink-800 border-pink-250";
+    return "bg-slate-100 text-slate-800 border-slate-200";
+  };
+
+  // Download weekly grid as a high-fidelity tabular PDF
+  function downloadWeeklyGridPDF() {
+    const dates = getWeekDatesLocal().slice(0, 6); // Monday to Saturday
+    const weekApts = appointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
+
+    // Gather hour slots
+    const slotsMap = new Map<string, { start: string; end: string }>();
+    weekApts.forEach(a => {
+      const st = a.start_time.slice(0, 5);
+      const et = a.end_time.slice(0, 5);
+      const key = `${st} a ${et}`;
+      slotsMap.set(key, { start: st, end: et });
+    });
+
+    let hourSlots = Array.from(slotsMap.values()).sort((a, b) => a.start.localeCompare(b.start));
+    if (hourSlots.length === 0) {
+      hourSlots = [
+        { start: "08:00", end: "09:00" },
+        { start: "09:00", end: "10:00" },
+        { start: "10:00", end: "11:00" },
+        { start: "11:00", end: "12:00" },
+        { start: "12:00", end: "13:00" },
+        { start: "13:00", end: "14:00" },
+        { start: "14:00", end: "15:00" },
+        { start: "15:00", end: "16:00" },
+        { start: "16:00", end: "17:00" },
+        { start: "17:00", end: "18:00" }
+      ];
+    }
+
+    const dayNamesES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    
+    // Generate headers
+    let thHeaders = `<th style="width:110px">HORA</th>`;
+    dates.forEach((date, idx) => {
+      const d = new Date(date + "T12:00:00");
+      thHeaders += `<th>${dayNamesES[idx]}<br/><span style="font-size:9px;opacity:0.8">${d.getDate()}/${d.getMonth()+1}</span></th>`;
+    });
+
+    // Generate table rows
+    let tableRows = "";
+    hourSlots.forEach(slot => {
+      let rowCells = `<td class="hour-cell">${slot.start} a ${slot.end}</td>`;
+      dates.forEach(date => {
+        const cellApts = weekApts.filter(a => a.date === date && a.start_time.startsWith(slot.start));
+        let cellContent = "";
+        
+        if (cellApts.length > 0) {
+          cellApts.forEach(apt => {
+            const badge = getTherapyBadge(apt);
+            const bClass = badge.toLowerCase() === "to" ? "badge-to" :
+                           badge.toLowerCase() === "tl" ? "badge-tl" :
+                           badge.toLowerCase() === "et" ? "badge-et" :
+                           badge.toLowerCase() === "con" ? "badge-con" :
+                           badge.toLowerCase() === "psi" ? "badge-psi" : "badge-default";
+            
+            const pName = (apt.patients as any) ? (apt.patients as any).first_name : "Paciente";
+            cellContent += `<span class="appt-badge ${bClass}">${pName} <span style="font-size:8px;opacity:0.85">${badge}</span></span>`;
+          });
+        }
+        rowCells += `<td>${cellContent || "—"}</td>`;
+      });
+      tableRows += `<tr>${rowCells}</tr>`;
+    });
+
+    const periodLabel = dateLabel();
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Horario Semanal — ${periodLabel}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #fff; padding: 25px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #312e81; padding-bottom: 12px; }
+    .header h1 { font-size: 20px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; }
+    .header p { font-size: 12px; color: #64748b; font-weight: 550; margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; vertical-align: middle; }
+    th { background-color: #1e1b4b; color: #ffffff; font-weight: 700; text-transform: uppercase; font-size: 10px; tracking: 0.05em; }
+    .hour-cell { background-color: #f8fafc; font-weight: 700; color: #334155; width: 110px; }
+    .appt-badge { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 3px 7px; margin: 3px; border-radius: 5px; font-weight: 700; font-size: 10px; border: 1px solid; }
+    
+    .badge-to { background-color: #cffafe; color: #0891b2; border-color: #a5f3fc; }
+    .badge-tl { background-color: #fef3c7; color: #d97706; border-color: #fde68a; }
+    .badge-et { background-color: #f3e8ff; color: #7c3aed; border-color: #e9d5ff; }
+    .badge-con { background-color: #d1fae5; color: #059669; border-color: #a7f3d0; }
+    .badge-psi { background-color: #fce7f3; color: #db2777; border-color: #fbcfe8; }
+    .badge-default { background-color: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+    
+    @media print {
+      body { padding: 0; }
+      th { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #1e1b4b !important; color: #fff !important; }
+      .hour-cell { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #f8fafc !important; }
+      .appt-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>📅 Horario Semanal de Citas</h1>
+      <p>Período: ${periodLabel}</p>
+    </div>
+    <div style="font-size:11px;color:#64748b;text-align:right">
+      <p>Generado el ${new Date().toLocaleDateString("es-EC")}</p>
+      <p>Total: ${weekApts.length} cita${weekApts.length!==1?"s":""}</p>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>${thHeaders}</tr>
+    </thead>
+    <tbody>
+      ${tableRows}
+    </tbody>
+  </table>
+  <script>
+    window.onload = () => { window.print(); }
+  </script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+
   // Get day names
   const dayNames = DAY_NAMES;
   const monthNames = MONTH_NAMES;
@@ -441,6 +602,12 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
         <div className="flex gap-2 flex-wrap">
           {appointments.length > 0 && (
             <>
+              <button
+                onClick={() => setShowWeeklyGrid(true)}
+                className="bg-indigo-55 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-100 inline-flex items-center gap-2"
+              >
+                📅 Ver Horario Semanal
+              </button>
               <button
                 onClick={downloadPDF}
                 className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-100 inline-flex items-center gap-2"
@@ -735,6 +902,139 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
               <div className="border-t border-gray-100 pt-3 mt-3">
                 <button onClick={() => { handleDelete(apt.id); setEditApt(null); }} className="px-3 py-1.5 text-xs text-red-700 bg-red-50 rounded-lg hover:bg-red-100">Eliminar cita</button>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Weekly Grid Modal */}
+      {showWeeklyGrid && (() => {
+        const dates = getWeekDatesLocal().slice(0, 6); // Monday to Saturday
+        const weekApts = appointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
+
+        // Gather hour slots
+        const slotsMap = new Map<string, { start: string; end: string }>();
+        weekApts.forEach(a => {
+          const st = a.start_time.slice(0, 5);
+          const et = a.end_time.slice(0, 5);
+          const key = `${st} a ${et}`;
+          slotsMap.set(key, { start: st, end: et });
+        });
+
+        let hourSlots = Array.from(slotsMap.values()).sort((a, b) => a.start.localeCompare(b.start));
+        if (hourSlots.length === 0) {
+          hourSlots = [
+            { start: "08:00", end: "09:00" },
+            { start: "09:00", end: "10:00" },
+            { start: "10:00", end: "11:00" },
+            { start: "11:00", end: "12:00" },
+            { start: "12:00", end: "13:00" },
+            { start: "13:00", end: "14:00" },
+            { start: "14:00", end: "15:00" },
+            { start: "15:00", end: "16:00" },
+            { start: "16:00", end: "17:00" },
+            { start: "17:00", end: "18:00" }
+          ];
+        }
+
+        const dayNamesES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowWeeklyGrid(false)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl mx-4 overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+              
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-gray-150 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span>📅 Horario Semanal de Citas</span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Período: {dateLabel()}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={downloadWeeklyGridPDF}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 inline-flex items-center gap-2 transition-colors"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Descargar Horario (PDF)
+                  </button>
+                  <button
+                    onClick={() => setShowWeeklyGrid(false)}
+                    className="text-gray-400 hover:text-gray-600 text-lg px-2 py-1 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Table Content */}
+              <div className="p-6 overflow-auto max-h-[calc(90vh-100px)]">
+                {weekApts.length === 0 ? (
+                  <div className="text-center py-16 text-gray-500">
+                    <p className="text-4xl mb-2">📅</p>
+                    <p className="text-sm font-medium">Sin citas registradas para esta semana</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                    <table className="w-full border-collapse text-left text-xs text-gray-500">
+                      <thead className="bg-gray-50 text-[10px] text-gray-700 uppercase font-semibold">
+                        <tr>
+                          <th className="px-4 py-3 border border-gray-200 text-center w-32 bg-gray-50 font-bold text-gray-800">HORA</th>
+                          {dates.map((date, idx) => {
+                            const d = new Date(date + "T12:00:00");
+                            return (
+                              <th key={date} className="px-4 py-3 border border-gray-200 text-center font-bold text-gray-800">
+                                {dayNamesES[idx]}
+                                <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{d.getDate()}/{d.getMonth()+1}</span>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {hourSlots.map((slot, sIdx) => (
+                          <tr key={sIdx} className="hover:bg-slate-50/50">
+                            <td className="px-4 py-3 border border-gray-200 text-center font-bold text-gray-700 bg-slate-50/50">
+                              {slot.start} a {slot.end}
+                            </td>
+                            {dates.map(date => {
+                              const cellApts = weekApts.filter(a => a.date === date && a.start_time.startsWith(slot.start));
+                              return (
+                                <td key={date} className="px-3 py-2 border border-gray-200 text-center min-w-[120px]">
+                                  {cellApts.length > 0 ? (
+                                    <div className="flex flex-col gap-1.5 justify-center items-center">
+                                      {cellApts.map(apt => {
+                                        const badge = getTherapyBadge(apt);
+                                        const badgeColorClass = getTherapyBadgeColor(badge);
+                                        const pName = (apt.patients as any) ? `${(apt.patients as any).first_name} ${(apt.patients as any).last_name}` : "Paciente";
+                                        return (
+                                          <div
+                                            key={apt.id}
+                                            onClick={() => { setEditApt(apt.id); setShowWeeklyGrid(false); }}
+                                            className={`w-full max-w-[160px] px-2 py-1.5 rounded-lg border text-[10px] text-center font-bold shadow-sm transition-all hover:scale-105 hover:shadow cursor-pointer ${badgeColorClass}`}
+                                            title={`Terapeuta: ${(apt.profiles as any) ? `${(apt.profiles as any).first_name} ${(apt.profiles as any).last_name}` : "—"}`}
+                                          >
+                                            <div className="truncate">{pName}</div>
+                                            <div className="text-[8px] opacity-75 mt-0.5 uppercase tracking-wide">{badge}</div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-300 font-medium">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              
             </div>
           </div>
         );
