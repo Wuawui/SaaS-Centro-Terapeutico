@@ -206,10 +206,8 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
   };
 
   const handleDelete = async () => {
-    setSaving(true);
-    const { error: err } = await supabase.from("patients").delete().eq("id", patient.id);
-    if (err) { setError(err.message); setSaving(false); return; }
-    router.push("/patients");
+    alert("Por políticas de conservación de datos clínicos (Cero Pérdida), los pacientes no pueden ser eliminados permanentemente del sistema. Por favor, cambie su estado a 'Inactivo' en la configuración de la ficha para archivarlo de forma segura.");
+    setSaving(false);
   };
 
   const status = statusFlow[patient.status] || { label: patient.status, color: "bg-gray-50 text-gray-700 border-gray-200", next: [] };

@@ -60,11 +60,8 @@ export default function PatientTable({ initialPatients }: { initialPatients: Pat
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("patients").delete().eq("id", id);
-    if (!error) {
-      setPatients(patients.filter((p) => p.id !== id));
-      setConfirmDelete(null);
-    }
+    alert("Por políticas de conservación de datos clínicos (Cero Pérdida), los pacientes no pueden ser eliminados permanentemente del sistema. Por favor, use la opción de 'Desactivar' (icono de bloqueo) para archivar al paciente de forma segura sin perder su historial.");
+    setConfirmDelete(null);
   };
 
   if (patients.length === 0) {
