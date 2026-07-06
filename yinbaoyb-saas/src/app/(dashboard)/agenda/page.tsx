@@ -80,6 +80,43 @@ export default function AgendaPage() {
   const [editApt, setEditApt] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState("");
   const [showWeeklyGrid, setShowWeeklyGrid] = useState(false);
+  const [weeklyAppointments, setWeeklyAppointments] = useState<Appointment[]>([]);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+
+  async function loadWeeklyData() {
+    if (!tenantId) return;
+    setWeeklyLoading(true);
+    const dates = getWeekDates(selectedDate);
+    const startDate = dates[0];
+    const endDate = dates[6];
+
+    let query = supabase
+      .from("appointments")
+      .select("id, patient_id, therapist_id, type, status, date, start_time, end_time, notes, patients(first_name, last_name), profiles!appointments_therapist_id_fkey(first_name, last_name)")
+      .eq("tenant_id", tenantId)
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true });
+
+    if (filterTherapist !== "all") {
+      query = query.eq("therapist_id", filterTherapist);
+    }
+
+    const { data } = await query;
+    if (data) {
+      setWeeklyAppointments(data as unknown as Appointment[]);
+    } else {
+      setWeeklyAppointments([]);
+    }
+    setWeeklyLoading(false);
+  }
+
+  useEffect(() => {
+    if (showWeeklyGrid) {
+      loadWeeklyData();
+    }
+  }, [showWeeklyGrid, selectedDate, filterTherapist, tenantId]);
 
   useEffect(() => { loadData(); }, [selectedDate, filterTherapist]);
 
@@ -415,7 +452,7 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
   // Download weekly grid as a high-fidelity tabular PDF
   function downloadWeeklyGridPDF() {
     const dates = getWeekDatesLocal().slice(0, 6); // Monday to Saturday
-    const weekApts = appointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
+    const weekApts = weeklyAppointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
 
     // Gather hour slots
     const slotsMap = new Map<string, { start: string; end: string }>();
@@ -910,7 +947,7 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
       {/* Weekly Grid Modal */}
       {showWeeklyGrid && (() => {
         const dates = getWeekDatesLocal().slice(0, 6); // Monday to Saturday
-        const weekApts = appointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
+        const weekApts = weeklyAppointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
 
         // Gather hour slots
         const slotsMap = new Map<string, { start: string; end: string }>();
@@ -954,7 +991,8 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
                 <div className="flex items-center gap-2">
                   <button
                     onClick={downloadWeeklyGridPDF}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 inline-flex items-center gap-2 transition-colors"
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 inline-flex items-center gap-2 transition-colors hover:shadow-md disabled:opacity-50"
+                    disabled={weeklyLoading}
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     Descargar Horario (PDF)
@@ -970,7 +1008,14 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
 
               {/* Modal Table Content */}
               <div className="p-6 overflow-auto max-h-[calc(90vh-100px)]">
-                {weekApts.length === 0 ? (
+                {weeklyLoading ? (
+                  <div className="flex items-center justify-center h-48">
+                    <svg className="animate-spin h-8 w-8 text-indigo-600" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
+                ) : weekApts.length === 0 ? (
                   <div className="text-center py-16 text-gray-500">
                     <p className="text-4xl mb-2">📅</p>
                     <p className="text-sm font-medium">Sin citas registradas para esta semana</p>
