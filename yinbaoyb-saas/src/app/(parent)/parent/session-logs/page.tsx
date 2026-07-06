@@ -54,6 +54,41 @@ interface PhysicalTherapySession {
   profiles: TherapistProfile | null;
 }
 
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+  
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return (
+    <div className="space-y-3 whitespace-pre-line text-sm text-gray-700">
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          const boldText = part.slice(2, -2);
+          const lower = boldText.toLowerCase();
+          
+          let borderClass = "border-emerald-500 text-emerald-800 bg-emerald-50/40";
+          if (lower.includes("recomendaciones") || lower.includes("casa") || lower.includes("tareas para")) {
+            borderClass = "border-amber-500 text-amber-800 bg-amber-50/40";
+          } else if (lower.includes("observaciones") || lower.includes("comentario")) {
+            borderClass = "border-indigo-500 text-indigo-800 bg-indigo-50/40";
+          }
+          
+          return (
+            <div 
+              key={i} 
+              className={`font-bold text-xs uppercase tracking-wide border-l-4 pl-3 py-1.5 mt-4 first:mt-0 rounded-r-lg ${borderClass}`}
+            >
+              {boldText}
+            </div>
+          );
+        }
+        
+        const cleanContent = part.replace(/^\n+/, '');
+        return cleanContent ? <div key={i} className="pl-4 text-gray-600 font-medium leading-relaxed">{cleanContent}</div> : null;
+      })}
+    </div>
+  );
+};
+
 export default function ParentSessionLogsPage() {
   const supabase = createClient();
   const { user } = useSession();
@@ -64,6 +99,17 @@ export default function ParentSessionLogsPage() {
   const [ptSessions, setPtSessions] = useState<PhysicalTherapySession[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [errorLogs, setErrorLogs] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState<string | null>(null);
+
+  const previewFile = (fileObj: any) => {
+    if (fileObj.file_data && fileObj.file_data.startsWith("data:application/pdf")) {
+      setPreviewUrl(fileObj.file_data);
+      setPreviewName(fileObj.file_name);
+    } else {
+      alert("La previsualización está disponible únicamente para archivos PDF");
+    }
+  };
 
   useEffect(() => {
     if (children.length > 0) {
@@ -311,23 +357,31 @@ export default function ParentSessionLogsPage() {
                             <p className="text-xs text-gray-400">{formattedSize}</p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            try {
-                              const link = document.createElement("a");
-                              link.href = fileData.file_data;
-                              link.download = fileData.file_name;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            } catch (e) {
-                              alert("Error al descargar el archivo");
-                            }
-                          }}
-                          className="px-3.5 py-1.5 text-xs font-semibold text-emerald-600 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors shadow-sm active:scale-95 shrink-0 cursor-pointer"
-                        >
-                          Descargar
-                        </button>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => previewFile(fileData)}
+                            className="px-3.5 py-1.5 text-xs font-semibold text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm cursor-pointer active:scale-95"
+                          >
+                            Previsualizar
+                          </button>
+                          <button
+                            onClick={() => {
+                              try {
+                                const link = document.createElement("a");
+                                link.href = fileData.file_data;
+                                link.download = fileData.file_name;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              } catch (e) {
+                                alert("Error al descargar el archivo");
+                              }
+                            }}
+                            className="px-3.5 py-1.5 text-xs font-semibold text-emerald-600 bg-white border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors shadow-sm active:scale-95 cursor-pointer"
+                          >
+                            Descargar
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -421,8 +475,10 @@ export default function ParentSessionLogsPage() {
                       {/* Libre Format Parsing */}
                       {note.format === "libre" && note.content && (
                         <div>
-                          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Bitácora de la Sesión</h4>
-                          <p className="text-sm text-gray-700 mt-1 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 whitespace-pre-line">{note.content}</p>
+                          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Bitácora de la Sesión</h4>
+                          <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                            {renderFormattedText(note.content)}
+                          </div>
                         </div>
                       )}
 
@@ -549,6 +605,37 @@ export default function ParentSessionLogsPage() {
           )
         )}
       </div>
+
+      {/* Modal de Previsualización de PDF */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-150 bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📄</span>
+                <h3 className="font-semibold text-gray-900 text-base md:text-lg truncate max-w-md md:max-w-xl">{previewName}</h3>
+              </div>
+              <button 
+                onClick={() => { setPreviewUrl(null); setPreviewName(null); }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none cursor-pointer"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Iframe */}
+            <div className="flex-1 bg-gray-100 relative">
+              <iframe 
+                src={previewUrl} 
+                className="w-full h-full border-0" 
+                title="Vista previa de documento"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
