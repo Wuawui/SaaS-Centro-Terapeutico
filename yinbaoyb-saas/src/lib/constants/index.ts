@@ -235,6 +235,7 @@ export const THERAPIST_NAV: NavItem[] = [
 export const PARENT_NAV: NavItem[] = [
   { name: "Inicio", href: "/parent", icon: LayoutDashboard, section: "Inicio" },
   { name: "Citas", href: "/parent/appointments", icon: CalendarDays, section: "Mi Hijo/a" },
+  { name: "Sesiones y Comentarios", href: "/parent/session-logs", icon: MessageSquare, section: "Mi Hijo/a" },
   { name: "Evolución IA", href: "/parent/notes", icon: ClipboardList, section: "Mi Hijo/a" },
   { name: "Evaluaciones", href: "/parent/scales", icon: FileBarChart, section: "Mi Hijo/a" },
   { name: "Perfil del Niño", href: "/parent/child", icon: Users, section: "Mi Hijo/a" },
