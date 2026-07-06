@@ -210,7 +210,7 @@ export default function TherapistAgendaPage() {
       ) : (
         <div className="overflow-x-auto -mx-1">
           <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden min-w-[560px]">
-          {dayNames.map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-medium text-gray-500">{d}</div>)}
+          {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-medium text-gray-500">{d}</div>)}
           {getMonthWeeksUtil(selectedDate).flat().map((date) => {
             const dd = new Date(date + "T12:00:00");
             const apts = byDate[date] || [];

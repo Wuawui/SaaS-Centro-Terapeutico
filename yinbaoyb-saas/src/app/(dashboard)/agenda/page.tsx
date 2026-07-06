@@ -454,6 +454,35 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
     const dates = getWeekDatesLocal().slice(0, 6); // Monday to Saturday
     const weekApts = weeklyAppointments.filter(a => dates.includes(a.date) && a.status !== "cancelada");
 
+    const getApptStyle = (apt: Appointment) => {
+      const { color: customColorId } = parseAppointmentNotes(apt.notes);
+      
+      const colors: Record<string, { bg: string; text: string; border: string }> = {
+        indigo: { bg: "#e0e7ff", text: "#4338ca", border: "#c7d2fe" },
+        purple: { bg: "#f3e8ff", text: "#6b21a8", border: "#e9d5ff" },
+        emerald: { bg: "#d1fae5", text: "#065f46", border: "#a7f3d0" },
+        pink: { bg: "#fce7f3", text: "#9d174d", border: "#fbcfe8" },
+        amber: { bg: "#fef3c7", text: "#92400e", border: "#fde68a" },
+        blue: { bg: "#dbeafe", text: "#1e40af", border: "#bfdbfe" },
+        rose: { bg: "#ffe4e6", text: "#9f1239", border: "#fecdd3" },
+        teal: { bg: "#ccfbf1", text: "#115e59", border: "#99f6e4" },
+      };
+      
+      if (customColorId && colors[customColorId]) {
+        return colors[customColorId];
+      }
+      
+      const typeColorsHex: Record<string, { bg: string; text: string; border: string }> = {
+        individual: { bg: "#e0e7ff", text: "#4338ca", border: "#c7d2fe" },
+        grupal: { bg: "#f3e8ff", text: "#6b21a8", border: "#e9d5ff" },
+        taller: { bg: "#d1fae5", text: "#065f46", border: "#a7f3d0" },
+        evaluacion: { bg: "#fef3c7", text: "#92400e", border: "#fde68a" },
+        supervision: { bg: "#fce7f3", text: "#9d174d", border: "#fbcfe8" },
+      };
+      
+      return typeColorsHex[apt.type] || { bg: "#f1f5f9", text: "#475569", border: "#e2e8f0" };
+    };
+
     // Gather hour slots
     const slotsMap = new Map<string, { start: string; end: string }>();
     weekApts.forEach(a => {
@@ -499,14 +528,9 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
         if (cellApts.length > 0) {
           cellApts.forEach(apt => {
             const badge = getTherapyBadge(apt);
-            const bClass = badge.toLowerCase() === "to" ? "badge-to" :
-                           badge.toLowerCase() === "tl" ? "badge-tl" :
-                           badge.toLowerCase() === "et" ? "badge-et" :
-                           badge.toLowerCase() === "con" ? "badge-con" :
-                           badge.toLowerCase() === "psi" ? "badge-psi" : "badge-default";
-            
+            const apptStyle = getApptStyle(apt);
             const pName = (apt.patients as any) ? (apt.patients as any).first_name : "Paciente";
-            cellContent += `<span class="appt-badge ${bClass}">${pName} <span style="font-size:8px;opacity:0.85">${badge}</span></span>`;
+            cellContent += `<span class="appt-badge" style="background-color: ${apptStyle.bg}; color: ${apptStyle.text}; border-color: ${apptStyle.border}">${pName} <span style="font-size:8px;opacity:0.85">${badge}</span></span>`;
           });
         }
         rowCells += `<td>${cellContent || "—"}</td>`;
@@ -846,7 +870,7 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
         <div className="overflow-x-auto -mx-1">
           <div className="min-w-[560px]">
             <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden">
-              {dayNames.map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-medium text-gray-500">{d}</div>)}
+              {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(d => <div key={d} className="bg-gray-50 text-center py-2 text-xs font-medium text-gray-500">{d}</div>)}
               {getMonthWeeksLocal().flat().map((date, i) => {
                 const d = new Date(date + "T12:00:00");
                 const apts = byDate[date] || [];
@@ -1051,7 +1075,8 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
                                     <div className="flex flex-col gap-1.5 justify-center items-center">
                                       {cellApts.map(apt => {
                                         const badge = getTherapyBadge(apt);
-                                        const badgeColorClass = getTherapyBadgeColor(badge);
+                                        const { color: customColorId } = parseAppointmentNotes(apt.notes);
+                                        const badgeColorClass = (customColorId && colorMap[customColorId]) || typeColors[apt.type] || "bg-gray-100 text-gray-700 border-gray-200";
                                         const pName = (apt.patients as any) ? `${(apt.patients as any).first_name} ${(apt.patients as any).last_name}` : "Paciente";
                                         return (
                                           <div
