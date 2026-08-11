@@ -152,7 +152,7 @@ async function _updateSessionInternal(request: NextRequest) {
     const { role } = await resolveProfile(true); // fresh on login
     let dest = "/dashboard";
     if (role === "padre") dest = "/parent";
-    else if (role === "terapeuta") dest = "/therapist";
+    else if (role === "terapeuta" || role === "fisioterapeuta") dest = "/therapist";
     return redirectWithCookies(dest);
   }
 
@@ -164,7 +164,7 @@ async function _updateSessionInternal(request: NextRequest) {
     const { role } = await resolveProfile();
     let dest = "/dashboard";
     if (role === "padre") dest = "/parent";
-    else if (role === "terapeuta") dest = "/therapist";
+    else if (role === "terapeuta" || role === "fisioterapeuta") dest = "/therapist";
     return redirectWithCookies(dest);
   }
 
@@ -183,7 +183,7 @@ async function _updateSessionInternal(request: NextRequest) {
     if (role === "padre" && isOnAdminPath) {
       return redirectWithCookies("/parent");
     }
-    if (role === "terapeuta" && isOnAdminPath) {
+    if ((role === "terapeuta" || role === "fisioterapeuta") && isOnAdminPath) {
       return redirectWithCookies("/therapist");
     }
   }

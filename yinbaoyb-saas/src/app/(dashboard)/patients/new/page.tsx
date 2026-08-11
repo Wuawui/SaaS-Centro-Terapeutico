@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { useRouter } from "next/navigation";
+import { ROLE_LABELS } from "@/lib/constants";
+
+interface TherapistOption {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
 
 export default function NewPatientPage() {
   const router = useRouter();
@@ -11,6 +19,7 @@ export default function NewPatientPage() {
   const { tenantId } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [therapists, setTherapists] = useState<TherapistOption[]>([]);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -21,6 +30,8 @@ export default function NewPatientPage() {
     phone: "",
     email: "",
     address: "",
+    therapist_id: "",
+    specialty_area: "terapia_fisica",
     emergency_contact_name: "",
     emergency_contact_relation: "",
     emergency_contact_phone: "",
@@ -32,6 +43,20 @@ export default function NewPatientPage() {
     insurance_provider: "",
     insurance_policy: "",
   });
+
+  useEffect(() => {
+    if (!tenantId) return;
+    async function loadTherapists() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, role")
+        .eq("tenant_id", tenantId)
+        .in("role", ["terapeuta", "fisioterapeuta"])
+        .eq("active", true);
+      if (data) setTherapists(data as TherapistOption[]);
+    }
+    loadTherapists();
+  }, [tenantId, supabase]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -45,33 +70,38 @@ export default function NewPatientPage() {
     setError(null);
 
     if (!tenantId) {
-      setError("No se encontró el tenant");
+      setError("No se encontró el centro / tenant activo");
       setLoading(false);
       return;
     }
 
-    const { error: insertError } = await supabase.from("patients").insert({
-      tenant_id: tenantId,
-      first_name: form.first_name,
-      last_name: form.last_name,
-      document_number: form.document_number || null,
-      birth_date: form.birth_date || null,
-      gender: form.gender || null,
-      phone: form.phone || null,
-      email: form.email || null,
-      address: form.address || null,
-      emergency_contact_name: form.emergency_contact_name || null,
-      emergency_contact_relation: form.emergency_contact_relation || null,
-      emergency_contact_phone: form.emergency_contact_phone || null,
-      reason_for_consultation: form.reason_for_consultation || null,
-      primary_diagnosis: form.primary_diagnosis || null,
-      primary_diagnosis_desc: form.primary_diagnosis_desc || null,
-      current_medication: form.current_medication || null,
-      medical_history: form.medical_history || null,
-      insurance_provider: form.insurance_provider || null,
-      insurance_policy: form.insurance_policy || null,
-      status: "lista_espera",
-    });
+    const { data: newPat, error: insertError } = await supabase
+      .from("patients")
+      .insert({
+        tenant_id: tenantId,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        document_number: form.document_number || null,
+        birth_date: form.birth_date || null,
+        gender: form.gender || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        address: form.address || null,
+        therapist_id: form.therapist_id || null,
+        emergency_contact_name: form.emergency_contact_name || null,
+        emergency_contact_relation: form.emergency_contact_relation || null,
+        emergency_contact_phone: form.emergency_contact_phone || null,
+        reason_for_consultation: form.reason_for_consultation || null,
+        primary_diagnosis: form.primary_diagnosis || null,
+        primary_diagnosis_desc: form.primary_diagnosis_desc || null,
+        current_medication: form.current_medication || null,
+        medical_history: form.medical_history || null,
+        insurance_provider: form.insurance_provider || null,
+        insurance_policy: form.insurance_policy || null,
+        status: "activo",
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       setError(insertError.message);
@@ -79,12 +109,17 @@ export default function NewPatientPage() {
       return;
     }
 
-    router.push("/patients");
+    // Redirigir según el servicio seleccionado
+    if (form.specialty_area === "terapia_fisica" && newPat) {
+      router.push(`/therapist/physical-therapy/histories/new?patientId=${newPat.id}`);
+    } else {
+      router.push("/patients");
+    }
     router.refresh();
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-12">
       {/* Header */}
       <div className="bg-white border-b px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -94,21 +129,65 @@ export default function NewPatientPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </a>
-            <h1 className="text-xl font-bold text-gray-900">Nuevo Paciente</h1>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Nuevo Paciente</h1>
+              <p className="text-xs text-gray-500">Registro de datos personales y asignación de terapia física</p>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Asignación de Servicio & Profesional */}
+          <div className="bg-gradient-to-r from-teal-900 to-slate-900 text-white rounded-2xl p-6 shadow-md">
+            <h2 className="text-base font-bold mb-1 font-outfit flex items-center gap-2">
+              🏃 Asignación de Especialidad & Terapeuta
+            </h2>
+            <p className="text-xs text-teal-200/80 mb-4">Configura si el paciente asistirá a Terapia Física / Rehabilitación</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-teal-100 mb-1">Área / Servicio de Atención *</label>
+                <select
+                  name="specialty_area"
+                  value={form.specialty_area}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
+                >
+                  <option value="terapia_fisica">🏃 Terapia Física / Rehabilitación (PDF 35 Páginas)</option>
+                  <option value="pedagogia">🧩 Terapia Pedagógica / Neuropsicología</option>
+                  <option value="multidisciplinar">⭐ Atención Multidisciplinaria / Híbrida</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-teal-100 mb-1">Fisioterapeuta / Terapeuta Asignado</label>
+                <select
+                  name="therapist_id"
+                  value={form.therapist_id}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
+                >
+                  <option value="">Sin terapeuta asignado por el momento...</option>
+                  {therapists.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.first_name} {t.last_name} ({ROLE_LABELS[t.role] || t.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           {/* Datos personales */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Datos Personales</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -121,7 +200,7 @@ export default function NewPatientPage() {
                   required
                   value={form.first_name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="María"
                 />
               </div>
@@ -135,7 +214,7 @@ export default function NewPatientPage() {
                   required
                   value={form.last_name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="García López"
                 />
               </div>
@@ -146,7 +225,7 @@ export default function NewPatientPage() {
                   type="text"
                   value={form.document_number}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="1234567890"
                 />
               </div>
@@ -157,7 +236,7 @@ export default function NewPatientPage() {
                   type="date"
                   value={form.birth_date}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
@@ -166,7 +245,7 @@ export default function NewPatientPage() {
                   name="gender"
                   value={form.gender}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="">Seleccionar...</option>
                   <option value="M">Masculino</option>
@@ -182,7 +261,7 @@ export default function NewPatientPage() {
                   type="tel"
                   value={form.phone}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="+593 99 999 9999"
                 />
               </div>
@@ -193,7 +272,7 @@ export default function NewPatientPage() {
                   type="email"
                   value={form.email}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="maria@ejemplo.com"
                 />
               </div>
@@ -204,7 +283,7 @@ export default function NewPatientPage() {
                   type="text"
                   value={form.address}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Av. 9 de Octubre, Guayaquil"
                 />
               </div>
@@ -212,7 +291,7 @@ export default function NewPatientPage() {
           </div>
 
           {/* Contacto de emergencia */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Contacto de Emergencia</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -222,7 +301,7 @@ export default function NewPatientPage() {
                   type="text"
                   value={form.emergency_contact_name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Juan García"
                 />
               </div>
@@ -233,7 +312,7 @@ export default function NewPatientPage() {
                   type="text"
                   value={form.emergency_contact_relation}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="Esposo, madre, hermano..."
                 />
               </div>
@@ -244,7 +323,7 @@ export default function NewPatientPage() {
                   type="tel"
                   value={form.emergency_contact_phone}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                   placeholder="+593 99 999 9999"
                 />
               </div>
@@ -252,31 +331,31 @@ export default function NewPatientPage() {
           </div>
 
           {/* Información clínica */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Información Clínica</h2>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Información Clínica / Lesión</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Motivo de consulta <span className="text-red-500">*</span>
+                  Motivo de consulta / Mecanismo de lesión <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   name="reason_for_consultation"
                   value={form.reason_for_consultation}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Describe el motivo de la consulta..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="Describe el dolor, molestia, traumatismo o motivo de consulta..."
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico principal (CIE-10)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico Médico (CIE-10)</label>
                 <input
                   name="primary_diagnosis"
                   type="text"
                   value={form.primary_diagnosis}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="F32.1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="Ej: M54.5 (Lumbago)"
                 />
               </div>
               <div>
@@ -286,78 +365,27 @@ export default function NewPatientPage() {
                   type="text"
                   value={form.primary_diagnosis_desc}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Episodio depresivo moderado"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Medicación actual</label>
-                <textarea
-                  name="current_medication"
-                  value={form.current_medication}
-                  onChange={handleChange}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Nombre, dosis, frecuencia, prescriptor..."
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Historial médico</label>
-                <textarea
-                  name="medical_history"
-                  value={form.medical_history}
-                  onChange={handleChange}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Tratamientos anteriores, hospitalizaciones, cirugías..."
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Seguro médico */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Seguro Médico (Opcional)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aseguradora</label>
-                <input
-                  name="insurance_provider"
-                  type="text"
-                  value={form.insurance_provider}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="IESS, Seguro Privado..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número de póliza</label>
-                <input
-                  name="insurance_policy"
-                  type="text"
-                  value={form.insurance_policy}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="12345678"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="Ej: Lumbalgia mecánica con espasmo paravertebral"
                 />
               </div>
             </div>
           </div>
 
           {/* Submit */}
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 pt-2">
             <a
               href="/patients"
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-5 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50"
             >
               Cancelar
             </a>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 shadow-sm"
             >
-              {loading ? "Guardando..." : "Crear Paciente"}
+              {loading ? "Guardando..." : "Crear Paciente e Iniciar Ficha FISIOJOY"}
             </button>
           </div>
         </form>

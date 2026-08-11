@@ -59,6 +59,7 @@ export default function TherapistsPage() {
     phone: "",
     email: "",
     password: "",
+    role: "terapeuta",
     specialty: "",
     license_number: "",
     therapeutic_approach: [] as string[],
@@ -187,7 +188,7 @@ export default function TherapistsPage() {
           first_name: form.first_name,
           last_name: form.last_name,
           phone: form.phone || undefined,
-          role: "terapeuta",
+          role: form.role || "terapeuta",
           tenant_id: profile?.tenant_id || (await getTenantId()),
           specialty: form.specialty || undefined,
           license_number: form.license_number || undefined,
@@ -204,7 +205,7 @@ export default function TherapistsPage() {
       }
 
       setShowAddForm(false);
-      setForm({ first_name: "", last_name: "", phone: "", email: "", password: "", specialty: "", license_number: "", therapeutic_approach: [], max_patients: 20 });
+      setForm({ first_name: "", last_name: "", phone: "", email: "", password: "", role: "terapeuta", specialty: "", license_number: "", therapeutic_approach: [], max_patients: 20 });
       loadTherapists();
     } catch (err: any) {
       setError(err.message);
@@ -317,8 +318,14 @@ export default function TherapistsPage() {
               </div>
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label><input type="password" required minLength={6} value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Mínimo 6 caracteres" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="+593 99 999 9999" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Especialidad</label><input value={form.specialty} onChange={e => setForm({...form, specialty: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Psicología Clínica" /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rol / Especialidad Principal</label>
+              <select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                <option value="terapeuta">👩‍⚕️ Terapeuta (Pedagógico / Neuropsicología)</option>
+                <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física / Rehabilitación)</option>
+              </select>
+            </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Especialidad Detallada</label><input value={form.specialty} onChange={e => setForm({...form, specialty: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="ej: Fisioterapia Deportiva / Neuropsicología" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Número de licencia</label><input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="PSI-XXXX" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Máximo de pacientes</label><input type="number" min={1} max={100} value={form.max_patients} onChange={e => setForm({...form, max_patients: parseInt(e.target.value) || 20})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
             {/* Therapeutic approach */}

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       .from("physical_therapy_sessions")
       .select("*, profiles!physical_therapy_sessions_therapist_id_fkey(first_name, last_name)")
       .eq("patient_id", patientId)
-      .order("created_at", { ascending: false });
+      .order("session_number", { ascending: false });
 
     if (error) throw error;
     return NextResponse.json(data || []);
@@ -54,6 +54,8 @@ export async function POST(request: Request) {
       sessionNumber,
       treatmentApplied,
       painLevelEva,
+      painLevelBeforeEva,
+      painLevelAfterEva,
       observations
     } = body;
 
@@ -68,9 +70,11 @@ export async function POST(request: Request) {
         history_id: historyId,
         patient_id: patientId,
         therapist_id: user.id,
-        session_number: sessionNumber,
+        session_number: sessionNumber || 1,
         treatment_applied: treatmentApplied,
-        pain_level_eva: painLevelEva || 0,
+        pain_level_eva: painLevelEva !== undefined ? painLevelEva : (painLevelAfterEva || 0),
+        pain_level_before_eva: painLevelBeforeEva || 0,
+        pain_level_after_eva: painLevelAfterEva || 0,
         observations: observations || ""
       })
       .select()

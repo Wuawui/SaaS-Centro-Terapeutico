@@ -8,6 +8,7 @@ export type UserRole =
   | "director"
   | "coordinador"
   | "terapeuta"
+  | "fisioterapeuta"
   | "admin"
   | "paciente"
   | "padre";

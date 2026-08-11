@@ -118,8 +118,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // Si es terapeuta, crear registro en therapists
-  if ((role || "terapeuta") === "terapeuta") {
+  // Si es terapeuta o fisioterapeuta, crear registro en therapists
+  const isTherapistRole = (role === "terapeuta" || role === "fisioterapeuta" || !role);
+  if (isTherapistRole) {
     const therapistBody: Record<string, unknown> = {
       id: userId,
       specialty: specialty || null,

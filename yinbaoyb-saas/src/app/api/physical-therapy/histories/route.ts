@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       patientId,
       identificationData,
       physicalMeasures,
+      medicalHistory,
       explorationGeneral,
       explorationStructural,
       gaitAnalysis,
@@ -112,6 +113,7 @@ export async function PUT(request: Request) {
       id,
       identificationData,
       physicalMeasures,
+      medicalHistory,
       explorationGeneral,
       explorationStructural,
       gaitAnalysis,
@@ -128,15 +130,15 @@ export async function PUT(request: Request) {
     const { data, error } = await supabase
       .from("physical_therapy_histories")
       .update({
-        identification_data: identificationData,
-        physical_measures: physicalMeasures,
-        exploration_general: explorationGeneral,
-        exploration_structural: explorationStructural,
-        gait_analysis: gaitAnalysis,
-        articular_evaluation: articularEvaluation,
-        muscular_evaluation: muscularEvaluation,
-        neurological_evaluation: neurologicalEvaluation,
-        treatment_plan: treatmentPlan,
+        identification_data: identificationData || {},
+        physical_measures: physicalMeasures || {},
+        exploration_general: explorationGeneral || {},
+        exploration_structural: explorationStructural || {},
+        gait_analysis: gaitAnalysis || {},
+        articular_evaluation: articularEvaluation || {},
+        muscular_evaluation: muscularEvaluation || {},
+        neurological_evaluation: neurologicalEvaluation || {},
+        treatment_plan: treatmentPlan || {},
         updated_at: new Date().toISOString()
       })
       .eq("id", id)

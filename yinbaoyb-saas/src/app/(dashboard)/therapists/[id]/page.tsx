@@ -1,16 +1,17 @@
 "use client";
 
 import { use } from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ROLE_LABELS } from "@/lib/constants";
 
 interface TherapistProfile {
   id: string; first_name: string; last_name: string;
-  phone: string | null; email: string | null; active: boolean;
+  phone: string | null; email: string | null; active: boolean; role: string;
 }
 
 interface TherapistData {
@@ -52,7 +53,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
   const [newSlot, setNewSlot] = useState({ day_of_week: 1, start_time: "09:00", end_time: "17:00" });
 
   // Edit form
-  const [form, setForm] = useState({ specialty: "", license_number: "", max_patients: 20, phone: "", therapeutic_approach: [] as string[], certifications: [] as string[] });
+  const [form, setForm] = useState({ role: "terapeuta", specialty: "", license_number: "", max_patients: 20, phone: "", therapeutic_approach: [] as string[], certifications: [] as string[] });
   const [approachInput, setApproachInput] = useState("");
   const [customApproachText, setCustomApproachText] = useState("");
   const [certInput, setCertInput] = useState("");
@@ -71,21 +72,15 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
   const toast = useToast();
   const router = useRouter();
 
-  useEffect(() => { loadData(); }, [id, tenantId]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    
-    const todayStr = new Date().toISOString().split("T")[0];
-    
-    // Cargar TODO en paralelo
     const [therapistRes, profileRes, patientsRes, availabilityRes, apptsCountRes, activeTherapistsRes] = await Promise.all([
-      supabase.from("therapists").select("id, specialty, license_number, certifications, therapeutic_approach, max_patients, active").eq("id", id).single(),
-      supabase.rpc("get_profile_by_id", { profile_id: id }),
-      supabase.from("patients").select("id, first_name, last_name, status, active").eq("therapist_id", id).order("status"),
-      supabase.from("therapist_availability").select("id, day_of_week, start_time, end_time").eq("therapist_id", id).order("day_of_week"),
-      supabase.from("appointments").select("*", { count: "exact", head: true }).eq("therapist_id", id).gte("date", todayStr).in("status", ["programada", "confirmada", "reprogramada"]),
-      supabase.from("profiles").select("id, first_name, last_name").eq("tenant_id", tenantId || "00000000-0000-0000-0000-000000000001").in("role", ["terapeuta", "coordinador"]).eq("active", true).neq("id", id)
+      supabase.from("therapists").select("*").eq("id", id).single(),
+      supabase.from("profiles").select("*").eq("id", id),
+      supabase.from("patients").select("*").eq("tenant_id", tenantId || "00000000-0000-0000-0000-000000000001").or(`therapist_id.eq.${id},secondary_therapist_ids.cs.{"${id}"}`).eq("active", true),
+      supabase.from("therapist_availability").select("*").eq("therapist_id", id).order("day_of_week"),
+      supabase.from("appointments").select("id", { count: "exact", head: true }).eq("therapist_id", id).gte("appointment_date", new Date().toISOString().split("T")[0]),
+      supabase.from("profiles").select("id, first_name, last_name").eq("tenant_id", tenantId || "00000000-0000-0000-0000-000000000001").in("role", ["terapeuta", "fisioterapeuta", "coordinador"]).eq("active", true).neq("id", id)
     ]);
 
     if (!therapistRes.data) {
@@ -103,6 +98,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
 
     setTherapist(combined as unknown as TherapistData);
     setForm({
+      role: profile?.role || "terapeuta",
       specialty: tData.specialty || "",
       license_number: tData.license_number || "",
       max_patients: tData.max_patients || 20,
@@ -124,7 +120,9 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
     }
 
     setLoading(false);
-  }
+  }, [id, supabase, tenantId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   async function handleSave() {
     setSaving(true); setError(null);
@@ -138,7 +136,10 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
 
     if (err1) { setError(err1.message); setSaving(false); return; }
 
-    const { error: err2 } = await supabase.from("profiles").update({ phone: form.phone || null }).eq("id", id);
+    const { error: err2 } = await supabase.from("profiles").update({ 
+      phone: form.phone || null,
+      role: form.role || "terapeuta"
+    }).eq("id", id);
     if (err2) { setError(err2.message); setSaving(false); return; }
 
     setEditing(false); setSaving(false); loadData();
@@ -417,7 +418,20 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
               </div>
               {editing ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Especialidad</label><input value={form.specialty} onChange={e => setForm({...form, specialty: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol / Especialidad Principal</label>
+                    <select 
+                      value={form.role} 
+                      onChange={e => setForm({...form, role: e.target.value})} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium"
+                    >
+                      <option value="terapeuta">👩‍⚕️ Terapeuta (Pedagógico / Neuropsicología)</option>
+                      <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física / Rehabilitación)</option>
+                      <option value="coordinador">📋 Coordinador/a Clínico</option>
+                      <option value="director">👔 Director/a de Sede</option>
+                    </select>
+                  </div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Especialidad Detallada</label><input value={form.specialty} onChange={e => setForm({...form, specialty: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Licencia</label><input value={form.license_number} onChange={e => setForm({...form, license_number: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Máx. pacientes</label><input type="number" min={1} max={100} value={form.max_patients} onChange={e => setForm({...form, max_patients: parseInt(e.target.value) || 20})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
@@ -468,6 +482,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               ) : (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div><dt className="text-xs font-medium text-gray-500 uppercase">Rol Sistema</dt><dd className="mt-1 text-sm font-bold text-slate-900">{(p?.role && ROLE_LABELS[p.role]) || p?.role || "—"}</dd></div>
                   <div><dt className="text-xs font-medium text-gray-500 uppercase">Especialidad</dt><dd className="mt-1 text-sm text-gray-900">{therapist.specialty || "—"}</dd></div>
                   <div><dt className="text-xs font-medium text-gray-500 uppercase">Licencia</dt><dd className="mt-1 text-sm text-gray-900">{therapist.license_number || "—"}</dd></div>
                   <div><dt className="text-xs font-medium text-gray-500 uppercase">Email</dt><dd className="mt-1 text-sm text-gray-900">{p?.email || "—"}</dd></div>
