@@ -13,21 +13,22 @@ import {
   Menu,
   X,
   UserCircle,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
-
-const navigation = [
-  { name: "Mi Dashboard", href: "/therapist", icon: LayoutDashboard },
-  { name: "Mis Pacientes", href: "/therapist/patients", icon: Users },
-  { name: "Mi Agenda", href: "/therapist/agenda", icon: CalendarDays },
-  { name: "Notas Clínicas", href: "/therapist/clinical", icon: ClipboardList },
-  { name: "Mi Perfil", href: "/therapist/profile", icon: UserCircle },
-];
 
 export function TherapistSidebar() {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navigation = [
+    { name: "Mi Dashboard", href: "/therapist", icon: LayoutDashboard },
+    { name: "Mis Pacientes", href: "/therapist/patients", icon: Users },
+    { name: "Mi Agenda", href: "/therapist/agenda", icon: CalendarDays },
+    { name: "Notas Clínicas", href: "/therapist/clinical", icon: ClipboardList },
+    { name: "Mi Perfil", href: "/therapist/profile", icon: UserCircle },
+  ];
 
   const navItems = navigation.map((item) => ({
     ...item,

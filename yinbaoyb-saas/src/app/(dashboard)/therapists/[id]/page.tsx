@@ -57,6 +57,35 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
   const [approachInput, setApproachInput] = useState("");
   const [customApproachText, setCustomApproachText] = useState("");
   const [certInput, setCertInput] = useState("");
+  const [showManageCategories, setShowManageCategories] = useState(false);
+
+  const [approachMap, setApproachMap] = useState<Record<string, string>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("system_subcategories_map");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return approachLabels;
+  });
+
+  const handleDeleteSubcategoryPermanently = (key: string, label: string) => {
+    if (!confirm(`¿Eliminar permanentemente la subcategoría "${label}" del sistema? Esta categoría ya no aparecerá disponible.`)) return;
+
+    const nextMap = { ...approachMap };
+    delete nextMap[key];
+    setApproachMap(nextMap);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("system_subcategories_map", JSON.stringify(nextMap));
+    }
+    setForm(prev => ({
+      ...prev,
+      therapeutic_approach: prev.therapeutic_approach.filter(x => x !== key)
+    }));
+    toast.addToast(`Subcategoría "${label}" eliminada permanentemente del sistema ✓`, "success");
+  };
 
   // Handover state
   const [showHandoverModal, setShowHandoverModal] = useState(false);
@@ -171,6 +200,29 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
     await supabase.from("therapists").update({ active: newActive }).eq("id", id);
     await supabase.from("profiles").update({ active: newActive }).eq("id", id);
     loadData();
+  }
+
+  async function handleDeleteTherapist() {
+    if (!confirm(`¿Estás seguro de eliminar permanentemente al profesional ${name}? Esta acción borrará su acceso y cuenta de forma definitiva.`)) {
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/delete-user?id=${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${session?.access_token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.addToast("Error al eliminar: " + (data.error || "No se pudo eliminar"), "error");
+      } else {
+        toast.addToast("Profesional eliminado definitivamente", "success");
+        router.push("/therapists");
+        router.refresh();
+      }
+    } catch (err: any) {
+      toast.addToast("Error de red al intentar eliminar", "error");
+    }
   }
 
   async function handleHandover() {
@@ -376,7 +428,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
 
       <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* ── ACCIONES RÁPIDAS ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <button onClick={() => { setActiveTab("info"); setEditing(true); }} className="flex items-center gap-3 px-4 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-2xl transition-colors text-left">
             <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></div>
             <div><p className="text-sm font-semibold text-indigo-900">Editar Perfil</p><p className="text-[10px] text-indigo-600/70">Información profesional</p></div>
@@ -391,7 +443,11 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
           </button>
           <button onClick={() => setShowHandoverModal(true)} className="flex items-center gap-3 px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-2xl transition-colors text-left">
             <div className="h-9 w-9 rounded-xl bg-purple-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg></div>
-            <div><p className="text-sm font-semibold text-purple-900">Cambio Personal</p><p className="text-[10px] text-purple-600/70">Reasignar pacientes y citas</p></div>
+            <div><p className="text-sm font-semibold text-purple-900">Cambio Personal</p><p className="text-[10px] text-purple-600/70">Reasignar citas</p></div>
+          </button>
+          <button onClick={handleDeleteTherapist} className="flex items-center gap-3 px-4 py-3 bg-red-50 hover:bg-red-100 border border-red-100 rounded-2xl transition-colors text-left">
+            <div className="h-9 w-9 rounded-xl bg-red-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></div>
+            <div><p className="text-sm font-semibold text-red-900">Eliminar</p><p className="text-[10px] text-red-600/70">Borrado definitivo</p></div>
           </button>
         </div>
 
@@ -425,7 +481,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
                       onChange={e => setForm({...form, role: e.target.value})} 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium"
                     >
-                      <option value="terapeuta">👩‍⚕️ Terapeuta (Pedagógico / Neuropsicología)</option>
+                      <option value="terapeuta">👩‍⚕️ Terapeuta (Integral / Atención Temprana)</option>
                       <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física / Rehabilitación)</option>
                       <option value="coordinador">📋 Coordinador/a Clínico</option>
                       <option value="director">👔 Director/a de Sede</option>
@@ -436,31 +492,118 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Máx. pacientes</label><input type="number" min={1} max={100} value={form.max_patients} onChange={e => setForm({...form, max_patients: parseInt(e.target.value) || 20})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Enfoque terapéutico</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Enfoque Terapéutico / Categorías</label>
                     <div className="flex gap-2 mb-2">
-                      <select value={approachInput} onChange={e => { setApproachInput(e.target.value); if (e.target.value !== "custom_option") setCustomApproachText(""); }} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                        <option value="">Seleccionar...</option>
-                        {Object.entries(approachLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                        <option value="custom_option">Otro (escribir propio)...</option>
+                      <select 
+                        value={approachInput} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          setApproachInput(val);
+                          if (val && val !== "custom_option" && !form.therapeutic_approach.includes(val)) {
+                            setForm({ ...form, therapeutic_approach: [...form.therapeutic_approach, val] });
+                            setApproachInput("");
+                          }
+                        }} 
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      >
+                        <option value="">Seleccionar categoría para agregar...</option>
+                        {Object.entries(approachMap).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                        <option value="custom_option">➕ Otro (escribir propio)...</option>
                       </select>
-                      <button type="button" onClick={handleAddApproach} className="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100">+</button>
                     </div>
+
                     {approachInput === "custom_option" && (
-                      <div className="mb-3">
+                      <div className="mb-3 flex gap-2">
                         <input 
                           type="text" 
                           value={customApproachText} 
                           onChange={e => setCustomApproachText(e.target.value)} 
-                          placeholder="Escribe tu propio enfoque..." 
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
+                          placeholder="Escribe la nueva categoría..." 
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
                         />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!customApproachText.trim()) return;
+                            const newKey = customApproachText.trim().toLowerCase().replace(/\s+/g, "_");
+                            const newLabel = customApproachText.trim();
+                            const nextMap = { ...approachMap, [newKey]: newLabel };
+                            setApproachMap(nextMap);
+                            if (typeof window !== "undefined") {
+                              localStorage.setItem("system_subcategories_map", JSON.stringify(nextMap));
+                            }
+                            if (!form.therapeutic_approach.includes(newKey)) {
+                              setForm({ ...form, therapeutic_approach: [...form.therapeutic_approach, newKey] });
+                            }
+                            setCustomApproachText("");
+                            setApproachInput("");
+                          }}
+                          className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700"
+                        >
+                          Agregar
+                        </button>
                       </div>
                     )}
+
                     {form.therapeutic_approach.length > 0 && (
-                      <div className="flex flex-wrap gap-2">{form.therapeutic_approach.map(a => (
-                        <span key={a} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-indigo-50 text-indigo-700 border border-indigo-200">{approachLabels[a] || a}<button type="button" onClick={() => setForm({...form, therapeutic_approach: form.therapeutic_approach.filter(x => x !== a)})} className="text-indigo-400 hover:text-indigo-700">✕</button></span>
-                      ))}</div>
+                      <div className="space-y-1.5 mt-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Categorías asignadas (haz clic en ✕ para desasignar):</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {form.therapeutic_approach.map(a => (
+                            <span 
+                              key={a} 
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-xs"
+                            >
+                              <span>{approachMap[a] || a}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setForm({ ...form, therapeutic_approach: form.therapeutic_approach.filter(x => x !== a) })} 
+                                className="h-4.5 w-4.5 rounded-full bg-red-100 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center text-[11px] font-extrabold transition-colors ml-1"
+                                title="Desasignar del terapeuta"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     )}
+
+                    {/* Sección para eliminar subcategorías de forma permanente */}
+                    <div className="mt-3 bg-red-50/50 p-3.5 rounded-xl border border-red-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-red-900 uppercase tracking-wider font-outfit">
+                          🗑️ Eliminar Subcategorías del Sistema (Permanente)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowManageCategories(!showManageCategories)}
+                          className="text-xs text-red-600 hover:text-red-800 underline font-bold"
+                        >
+                          {showManageCategories ? "Ocultar" : "Gestionar Subcategorías"}
+                        </button>
+                      </div>
+
+                      {showManageCategories && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-red-100 max-h-48 overflow-y-auto">
+                          {Object.entries(approachMap).map(([k, label]) => (
+                            <div key={k} className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-200 text-xs shadow-2xs">
+                              <span className="font-medium text-slate-800">{label}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubcategoryPermanently(k, label)}
+                                className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-[10px] transition-colors flex items-center gap-1 shadow-2xs"
+                                title="Eliminar permanentemente del sistema"
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Certificaciones</label>

@@ -63,7 +63,7 @@ export default function TherapistClinicalPage() {
     | "cif_plan" 
     | "general";
 
-  const isPhysio = (profile?.role as string) === "fisioterapeuta";
+  const isPhysio = (profile?.role as string) === "fisioterapeuta" || (profile as any)?.specialty_area === "terapia_fisica";
   const [reportType, setReportType] = useState<ReportType>(isPhysio ? "sesion" : "general");
 
   // Form states
@@ -435,28 +435,32 @@ export default function TherapistClinicalPage() {
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-1">Registra evaluaciones del PDF FISIOJOY y la evolución diaria de tus pacientes</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {isPhysio ? "Registra evaluaciones de rehabilitación física y la evolución de tus pacientes" : "Registra la evolución diaria y notas clínicas de tus pacientes"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link 
-            href="/therapist/physical-therapy"
-            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 font-outfit"
-          >
-            <Activity className="h-4 w-4" /> Historia Clínica 35 Págs FISIOJOY <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          {isPhysio && (
+            <Link 
+              href="/therapist/physical-therapy"
+              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 font-outfit"
+            >
+              <Activity className="h-4 w-4" /> Historia Clínica de Rehabilitación <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
           <button onClick={() => setShowNew(true)} className="bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-teal-700 inline-flex items-center gap-2 shadow-sm">
-            <PlusCircle className="h-4 w-4" /> Registrar Reporte del PDF
+            <PlusCircle className="h-4 w-4" /> Registrar Reporte Clínico
           </button>
         </div>
       </div>
 
-      {/* FORMULARIO Y SELECTOR DE REPORTES DEL PDF FISIOJOY */}
+      {/* FORMULARIO Y SELECTOR DE REPORTES FISIOTERAPÉUTICOS */}
       {showNew && (
         <div className="bg-white rounded-2xl border border-teal-200 p-6 shadow-soft space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
-              <h2 className="text-base font-bold text-gray-900 font-outfit">Selecciona el reporte del PDF a rellenar</h2>
-              <p className="text-xs text-gray-500">Módulos del Formulario Fisioterapéutico FISIOJOY (35 Páginas)</p>
+              <h2 className="text-base font-bold text-gray-900 font-outfit">Selecciona el tipo de reporte a rellenar</h2>
+              <p className="text-xs text-gray-500">Módulos del Formulario de Evaluación Fisioterapéutica</p>
             </div>
             <button onClick={() => setShowNew(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
           </div>

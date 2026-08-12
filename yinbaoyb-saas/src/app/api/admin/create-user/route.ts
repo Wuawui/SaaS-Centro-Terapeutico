@@ -142,6 +142,25 @@ export async function POST(request: Request) {
     }
   }
 
+  // Si es paciente/niño, crear también entrada en tabla patients para la ficha clínica
+  if (role === "paciente") {
+    const patientBody = {
+      tenant_id: userTenantId,
+      first_name,
+      last_name,
+      phone: phone || null,
+      email: email || null,
+      status: "activo",
+      active: true,
+    };
+
+    await fetch(`${supabaseUrl}/rest/v1/patients`, {
+      method: "POST",
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(patientBody),
+    });
+  }
+
   return NextResponse.json({
     success: true,
     user: {

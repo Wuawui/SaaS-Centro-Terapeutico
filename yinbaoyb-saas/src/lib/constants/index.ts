@@ -18,6 +18,7 @@ import {
   Archive,
   MessageSquare,
   Sparkles,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
@@ -182,10 +183,10 @@ export const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Administrador",
   director: "Director de Sede",
   coordinador: "Coordinador Clínico",
-  terapeuta: "Terapeuta (Pedagógico / Neuropsicología)",
+  terapeuta: "Terapeuta (Integral / Atención Temprana)",
   fisioterapeuta: "Fisioterapeuta (Terapia Física)",
   admin: "Administrativo",
-  paciente: "Paciente",
+  paciente: "👶 Niños (Pacientes de Terapias)",
   padre: "Padre/Acudiente",
 };
 
@@ -212,12 +213,11 @@ export interface NavItem {
 
 export const ADMIN_NAV: NavItem[] = [
   // ── PRINCIPAL
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "Principal", roles: ["super_admin", "director", "coordinador", "terapeuta", "admin"] },
-  { name: "Agenda", href: "/agenda", icon: CalendarDays, section: "Principal", roles: ["super_admin", "director", "coordinador", "terapeuta", "admin"] },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "Principal", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
+  { name: "Agenda", href: "/agenda", icon: CalendarDays, section: "Principal", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
   // ── CLÍNICA
-  { name: "Pacientes", href: "/patients", icon: Users, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "admin"] },
+  { name: "Pacientes", href: "/patients", icon: Users, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
   { name: "Terapeutas", href: "/therapists", icon: UserCog, section: "Clínica", roles: ["super_admin", "director", "coordinador", "admin"] },
-  { name: "Clínico", href: "/clinical", icon: ClipboardList, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "admin"] },
   // ── ADMINISTRACIÓN
   { name: "Usuarios", href: "/users", icon: UserPlus, section: "Administración", roles: ["super_admin", "director", "coordinador", "admin"] },
   { name: "Reportes", href: "/reports", icon: FileBarChart, section: "Administración", roles: ["super_admin", "director", "coordinador", "admin"] },
@@ -239,7 +239,6 @@ export const PARENT_NAV: NavItem[] = [
   { name: "Citas", href: "/parent/appointments", icon: CalendarDays, section: "Mi Hijo/a" },
   { name: "Sesiones y Comentarios", href: "/parent/session-logs", icon: MessageSquare, section: "Mi Hijo/a" },
   { name: "Evolución IA", href: "/parent/notes", icon: ClipboardList, section: "Mi Hijo/a" },
-  { name: "Evaluaciones", href: "/parent/scales", icon: FileBarChart, section: "Mi Hijo/a" },
   { name: "Perfil del Niño", href: "/parent/child", icon: Users, section: "Mi Hijo/a" },
   { name: "Mi Perfil", href: "/parent/profile", icon: UserCircle, section: "Cuenta" },
 ];

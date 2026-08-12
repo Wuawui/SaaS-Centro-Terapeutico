@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   CheckCircle, 
   Clock, 
@@ -10,8 +10,13 @@ import {
   ChevronUp, 
   FileText, 
   Edit3, 
-  Calendar 
+  Calendar,
+  Lock,
+  Unlock,
+  AlertCircle,
+  X
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import FormattedNoteContent from "./FormattedNoteContent";
 
 interface ClinicalNoteCardProps {
@@ -22,6 +27,7 @@ interface ClinicalNoteCardProps {
   createdAt: string;
   patientName?: string;
   therapistName?: string;
+  isAdmin?: boolean;
   onSign?: (id: string) => void | Promise<void>;
 }
 
@@ -49,11 +55,54 @@ export default function ClinicalNoteCard({
   createdAt,
   patientName,
   therapistName,
+  isAdmin: propIsAdmin,
   onSign
 }: ClinicalNoteCardProps) {
+  const supabase = createClient();
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Modal & Edit States
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [requestReason, setRequestReason] = useState("");
+  const [editContentText, setEditContentText] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        if (prof) setUserRole(prof.role);
+      }
+    }
+    fetchRole();
+  }, []);
+
+  const isAdminRole = propIsAdmin || ["admin", "director", "coordinador", "super_admin"].includes(userRole || "");
+
+  // Parse payload metadata if content is JSON wrapper
+  let parsedBody = content || "";
+  let editRequested = false;
+  let editReason = "";
+  let editApproved = false;
+
+  try {
+    if (content && content.trim().startsWith("{")) {
+      const parsed = JSON.parse(content);
+      if (parsed.body !== undefined) {
+        parsedBody = parsed.body;
+        editRequested = !!parsed.edit_requested;
+        editReason = parsed.edit_reason || "";
+        editApproved = !!parsed.edit_approved;
+      }
+    }
+  } catch (e) {
+    parsedBody = content || "";
+  }
 
   const formatKey = format?.toLowerCase() || "libre";
   const formatLabel = noteFormatLabels[formatKey] || format || "Nota";
@@ -62,7 +111,7 @@ export default function ClinicalNoteCard({
   // Clean raw content for copy to clipboard
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const cleanText = content
+    const cleanText = parsedBody
       .replace(/\*\*/g, "")
       .replace(/---/g, "")
       .trim();
@@ -85,6 +134,110 @@ export default function ClinicalNoteCard({
     }
   };
 
+  // Submit edit authorization request to Admin
+  const handleSendEditRequest = async () => {
+    if (!requestReason.trim()) return;
+    setActionLoading(true);
+    const updatedPayload = JSON.stringify({
+      body: parsedBody,
+      edit_requested: true,
+      edit_reason: requestReason.trim(),
+      edit_approved: false,
+      requested_at: new Date().toISOString()
+    });
+
+    const { error: err } = await supabase
+      .from("clinical_notes")
+      .update({ content: updatedPayload })
+      .eq("id", id);
+
+    setActionLoading(false);
+    if (err) {
+      alert("Error al solicitar edición: " + err.message);
+    } else {
+      setShowRequestModal(false);
+      window.location.reload();
+    }
+  };
+
+  // Admin approves edit request
+  const handleAdminApprove = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActionLoading(true);
+    const updatedPayload = JSON.stringify({
+      body: parsedBody,
+      edit_requested: false,
+      edit_approved: true,
+      edit_reason: editReason
+    });
+
+    const { error: err } = await supabase
+      .from("clinical_notes")
+      .update({ content: updatedPayload })
+      .eq("id", id);
+
+    setActionLoading(false);
+    if (err) {
+      alert("Error al autorizar la edición: " + err.message);
+    } else {
+      window.location.reload();
+    }
+  };
+
+  // Admin rejects edit request
+  const handleAdminReject = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActionLoading(true);
+    const updatedPayload = JSON.stringify({
+      body: parsedBody,
+      edit_requested: false,
+      edit_approved: false
+    });
+
+    const { error: err } = await supabase
+      .from("clinical_notes")
+      .update({ content: updatedPayload })
+      .eq("id", id);
+
+    setActionLoading(false);
+    if (err) {
+      alert("Error al rechazar la solicitud: " + err.message);
+    } else {
+      window.location.reload();
+    }
+  };
+
+  // Open Edit Modal with current body
+  const handleOpenEditModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditContentText(parsedBody);
+    setShowEditModal(true);
+  };
+
+  // Save the edited content
+  const handleSaveNoteEdit = async () => {
+    if (!editContentText.trim()) return;
+    setActionLoading(true);
+    const updatedPayload = JSON.stringify({
+      body: editContentText.trim(),
+      edit_requested: false,
+      edit_approved: false
+    });
+
+    const { error: err } = await supabase
+      .from("clinical_notes")
+      .update({ content: updatedPayload })
+      .eq("id", id);
+
+    setActionLoading(false);
+    if (err) {
+      alert("Error al guardar los cambios: " + err.message);
+    } else {
+      setShowEditModal(false);
+      window.location.reload();
+    }
+  };
+
   // Get patient initials for avatar
   const getInitials = (name: string) => {
     return name
@@ -95,7 +248,7 @@ export default function ClinicalNoteCard({
       .toUpperCase();
   };
 
-  const isLongNote = content?.length > 320;
+  const isLongNote = parsedBody?.length > 320;
 
   // Formatted date string
   const dateObj = new Date(createdAt);
@@ -120,7 +273,7 @@ export default function ClinicalNoteCard({
     >
       {/* Card Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 pb-3 border-b border-slate-50 bg-slate-50/20">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {/* Format Badge */}
           <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${formatColorClass} shadow-sm flex items-center gap-1.5`}>
             <FileText className="h-3 w-3" />
@@ -146,12 +299,27 @@ export default function ClinicalNoteCard({
         </div>
 
         {/* Date and Status badges */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Created Date */}
           <div className="flex items-center gap-1 text-xs text-slate-400 font-medium">
             <Calendar className="h-3.5 w-3.5 text-slate-350" />
             <span>{formattedDate} · {formattedTime}</span>
           </div>
+
+          {/* Edit Request Status Badge */}
+          {editRequested && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-xs animate-pulse">
+              <Clock className="h-3 w-3 text-amber-700" />
+              Edición Solicitada al Admin
+            </span>
+          )}
+
+          {editApproved && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 shadow-xs">
+              <Unlock className="h-3 w-3 text-indigo-700" />
+              Edición Autorizada
+            </span>
+          )}
 
           {/* Sign Status */}
           {signed ? (
@@ -168,6 +336,35 @@ export default function ClinicalNoteCard({
         </div>
       </div>
 
+      {/* Edit Request Banner for Admin */}
+      {editRequested && isAdminRole && (
+        <div className="mx-5 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-700 flex-shrink-0" />
+            <div className="text-xs">
+              <p className="font-bold text-amber-900">Solicitud de Edición de Nota</p>
+              <p className="text-amber-800">Motivo: <em>"{editReason || "Sin motivo especificado"}"</em></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleAdminApprove}
+              disabled={actionLoading}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-xs disabled:opacity-50"
+            >
+              ✅ Autorizar
+            </button>
+            <button
+              onClick={handleAdminReject}
+              disabled={actionLoading}
+              className="px-3 py-1.5 bg-white hover:bg-red-50 text-red-700 border border-red-200 font-bold text-xs rounded-lg transition-colors disabled:opacity-50"
+            >
+              ❌ Rechazar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Card Body */}
       <div className="p-5">
         <div 
@@ -175,7 +372,7 @@ export default function ClinicalNoteCard({
             isLongNote && !isExpanded ? "max-h-[200px]" : "max-h-[2500px]"
           }`}
         >
-          <FormattedNoteContent content={content} />
+          <FormattedNoteContent content={parsedBody} />
           
           {/* Fade out gradient for collapsed state */}
           {isLongNote && !isExpanded && (
@@ -185,8 +382,8 @@ export default function ClinicalNoteCard({
       </div>
 
       {/* Card Footer Actions */}
-      <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50/10 border-t border-slate-50/50 rounded-b-2xl">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between px-5 py-3.5 bg-slate-50/10 border-t border-slate-50/50 rounded-b-2xl gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Copy Button */}
           <button
             onClick={handleCopy}
@@ -221,6 +418,38 @@ export default function ClinicalNoteCard({
               {signing ? "Firmando..." : "Firmar nota"}
             </button>
           )}
+
+          {/* Edit Authorization & Edit Button */}
+          {isAdminRole ? (
+            <button
+              onClick={handleOpenEditModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer shadow-sm"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Editar Nota (Admin)
+            </button>
+          ) : editApproved ? (
+            <button
+              onClick={handleOpenEditModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer shadow-sm"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Editar Nota (Autorizado)
+            </button>
+          ) : editRequested ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl">
+              <Lock className="h-3.5 w-3.5 text-amber-600" />
+              Esperando autorización del Admin...
+            </span>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowRequestModal(true); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
+            >
+              <Lock className="h-3.5 w-3.5 text-slate-500" />
+              Solicitar Edición al Admin
+            </button>
+          )}
         </div>
 
         {/* Expand/Collapse Button */}
@@ -243,6 +472,99 @@ export default function ClinicalNoteCard({
           </button>
         )}
       </div>
+
+      {/* Modal: Solicitar Autorización al Admin */}
+      {showRequestModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 font-outfit flex items-center gap-2">
+                🔒 Solicitar Autorización de Edición
+              </h3>
+              <button onClick={() => setShowRequestModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Las notas clínicas están protegidas. Para modificar esta nota (pendiente o firmada), envía el motivo al Administrador para su autorización.
+            </p>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 font-outfit">
+                Motivo del cambio o corrección <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={requestReason}
+                onChange={(e) => setRequestReason(e.target.value)}
+                rows={3}
+                required
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Ej: Corregir diagnóstico, tipografía o detallar actividades de la sesión..."
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowRequestModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl border border-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSendEditRequest}
+                disabled={actionLoading || !requestReason.trim()}
+                className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm disabled:opacity-50"
+              >
+                {actionLoading ? "Enviando..." : "Enviar Solicitud"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Nota Clínica (Admin / Autorizado) */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 font-outfit flex items-center gap-2">
+                ✏️ Editar Contenido de Nota Clínica
+              </h3>
+              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 font-outfit">
+                Contenido de la Nota
+              </label>
+              <textarea
+                value={editContentText}
+                onChange={(e) => setEditContentText(e.target.value)}
+                rows={12}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl border border-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNoteEdit}
+                disabled={actionLoading || !editContentText.trim()}
+                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm disabled:opacity-50"
+              >
+                {actionLoading ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { PATIENT_STATUS_CONFIG } from "@/lib/constants";
+import { Activity, Puzzle, Users, Plus, Search } from "lucide-react";
 
 interface Patient {
   id: string;
@@ -17,9 +18,12 @@ interface Patient {
   email: string | null;
   primary_diagnosis: string | null;
   primary_diagnosis_desc: string | null;
+  reason_for_consultation: string | null;
+  therapist_id: string | null;
   status: string;
   active: boolean | null;
   created_at: string;
+  therapist_role?: string;
 }
 
 const statusConfig = PATIENT_STATUS_CONFIG;
@@ -29,6 +33,7 @@ export default function PatientsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "terapia_fisica" | "terapia_integral">("all");
   const [showInactive, setShowInactive] = useState(false);
   const toast = useToast();
   const supabase = createClient();
@@ -41,15 +46,27 @@ export default function PatientsPage() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, first_name, last_name, document_number, phone, email, status, primary_diagnosis, primary_diagnosis_desc, active, created_at")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
-      if (error) {
-        setErrorMsg(`Error: ${error.message}`);
+      const [patRes, profRes] = await Promise.all([
+        supabase
+          .from("patients")
+          .select("id, first_name, last_name, document_number, phone, email, status, primary_diagnosis, primary_diagnosis_desc, reason_for_consultation, therapist_id, active, created_at")
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("profiles")
+          .select("id, role")
+          .eq("tenant_id", tenantId)
+      ]);
+
+      if (patRes.error) {
+        setErrorMsg(`Error: ${patRes.error.message}`);
       } else {
-        setPatients(data || []);
+        const profMap = new Map((profRes.data || []).map((p: { id: string; role: string }) => [p.id, p.role]));
+        const enriched = (patRes.data || []).map((p: any) => ({
+          ...p,
+          therapist_role: p.therapist_id ? profMap.get(p.therapist_id) : undefined
+        }));
+        setPatients(enriched);
       }
     } catch (err: any) {
       console.error("Error fetching patients:", err);
@@ -59,23 +76,64 @@ export default function PatientsPage() {
     }
   }
 
+  // Helper para determinar la categoría del paciente
+  const getPatientCategory = (p: Patient): "terapia_fisica" | "terapia_integral" => {
+    if (p.therapist_role === "fisioterapeuta") return "terapia_fisica";
+    const text = `${p.primary_diagnosis_desc || ""} ${p.primary_diagnosis || ""} ${p.reason_for_consultation || ""}`.toLowerCase();
+    if (
+      text.includes("física") || 
+      text.includes("fisica") || 
+      text.includes("rehabilitación") || 
+      text.includes("rehabilitacion") || 
+      text.includes("fisioterapia") || 
+      text.includes("lumbago") || 
+      text.includes("espasmo") || 
+      text.includes("lesión") || 
+      text.includes("lesion") || 
+      text.includes("fractura") || 
+      text.includes("dolor") || 
+      text.includes("daniels") || 
+      text.includes("goniometría") || 
+      text.includes("marcha")
+    ) {
+      return "terapia_fisica";
+    }
+    return "terapia_integral";
+  };
+
   const activePatients = patients.filter(p => p.active !== false);
   const inactivePatients = patients.filter(p => p.active === false);
 
   const filterList = (list: Patient[]) =>
-    search ? list.filter(p => {
-      const q = search.toLowerCase();
-      return `${p.first_name} ${p.last_name}`.toLowerCase().includes(q) ||
-        (p.document_number || "").toLowerCase().includes(q) ||
-        (p.primary_diagnosis_desc || p.primary_diagnosis || "").toLowerCase().includes(q);
-    }) : list;
+    list.filter(p => {
+      // 1. Filtro por categoría (Terapia Física vs Terapia Integral)
+      const category = getPatientCategory(p);
+      if (categoryFilter !== "all" && category !== categoryFilter) {
+        return false;
+      }
+      // 2. Filtro de búsqueda por texto
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          `${p.first_name} ${p.last_name}`.toLowerCase().includes(q) ||
+          (p.document_number || "").toLowerCase().includes(q) ||
+          (p.primary_diagnosis_desc || p.primary_diagnosis || "").toLowerCase().includes(q) ||
+          (p.reason_for_consultation || "").toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
 
-  if (loading) return <PageLoading text="Cargando pacientes..." />;
+  const physicalCount = activePatients.filter(p => getPatientCategory(p) === "terapia_fisica").length;
+  const integralCount = activePatients.filter(p => getPatientCategory(p) === "terapia_integral").length;
+
+  if (loading) return <PageLoading text="Cargando catálogo de pacientes..." />;
 
   const PatientCard = ({ patient, inactive }: { patient: Patient; inactive?: boolean }) => {
     const status = statusConfig[patient.status] || { label: patient.status, color: "bg-gray-50 text-gray-700" };
+    const category = getPatientCategory(patient);
     const initials = `${patient.first_name?.[0] || ""}${patient.last_name?.[0] || ""}`;
-    const dx = patient.primary_diagnosis_desc || patient.primary_diagnosis;
+    const dx = patient.primary_diagnosis_desc || patient.primary_diagnosis || patient.reason_for_consultation;
 
     return (
       <Link
@@ -86,20 +144,39 @@ export default function PatientsPage() {
       >
         <div className="flex items-center gap-4">
           <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm ${
-            inactive ? "bg-gray-400" : "bg-gradient-to-br from-indigo-500 to-purple-600"
+            inactive 
+              ? "bg-gray-400" 
+              : category === "terapia_fisica" 
+              ? "bg-gradient-to-br from-teal-500 to-emerald-600" 
+              : "bg-gradient-to-br from-indigo-500 to-purple-600"
           }`}>
             {initials}
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-sm font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="text-sm font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors font-outfit">
                 {patient.first_name} {patient.last_name}
               </h3>
+              
+              {/* Badge de Categoría Principal */}
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border font-outfit ${
+                category === "terapia_fisica"
+                  ? "bg-teal-50 text-teal-700 border-teal-200"
+                  : "bg-indigo-50 text-indigo-700 border-indigo-200"
+              }`}>
+                {category === "terapia_fisica" ? (
+                  <>🏃 Terapia Física</>
+                ) : (
+                  <>🧩 Terapia Integral</>
+                )}
+              </span>
+
               <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${status.color}`}>
                 {status.label}
               </span>
             </div>
+
             <div className="flex items-center gap-3 text-xs text-gray-500">
               {patient.phone && (
                 <span className="flex items-center gap-1">
@@ -108,7 +185,7 @@ export default function PatientsPage() {
                 </span>
               )}
               {dx && (
-                <span className="flex items-center gap-1 truncate">
+                <span className="flex items-center gap-1 truncate font-medium text-slate-600">
                   <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   <span className="truncate">{dx}</span>
                 </span>
@@ -126,15 +203,15 @@ export default function PatientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pacientes</h1>
+          <h1 className="text-2xl font-bold text-gray-900 font-outfit">Pacientes</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {activePatients.length} activo{activePatients.length !== 1 ? "s" : ""} · {inactivePatients.length} inactivo{inactivePatients.length !== 1 ? "s" : ""}
+            {activePatients.length} activo{activePatients.length !== 1 ? "s" : ""} · {physicalCount} Terapia Física · {integralCount} Terapia Integral
           </p>
         </div>
-        <Link href="/patients/new" className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors inline-flex items-center gap-2 shadow-sm">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+        <Link href="/patients/new" className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors inline-flex items-center gap-2 shadow-sm">
+          <Plus className="h-4 w-4" />
           Nuevo Paciente
         </Link>
       </div>
@@ -143,30 +220,65 @@ export default function PatientsPage() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-red-700 text-sm font-medium">Error al cargar pacientes</p>
           <p className="text-red-600 text-xs mt-1">{errorMsg}</p>
-          <button onClick={fetchPatients} className="mt-2 text-xs text-red-700 underline">Reintentar</button>
+          <button onClick={fetchPatients} className="mt-2 text-xs text-red-700 underline font-bold">Reintentar</button>
         </div>
       )}
 
-      <div className="relative">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-        <input
-          type="text"
-          placeholder="Buscar paciente por nombre o diagnóstico..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
-        />
+      {/* PESTAÑAS DE CATEGORÍA DE PACIENTES */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
+        
+        {/* Selector de Categoría (Tabs) */}
+        <div className="flex bg-slate-100 p-1 rounded-xl w-full md:w-auto gap-1">
+          <button
+            onClick={() => setCategoryFilter("all")}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              categoryFilter === "all" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Users className="h-4 w-4" /> Todos ({activePatients.length})
+          </button>
+
+          <button
+            onClick={() => setCategoryFilter("terapia_fisica")}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              categoryFilter === "terapia_fisica" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Activity className="h-4 w-4 text-teal-600" /> 🏃 Terapia Física ({physicalCount})
+          </button>
+
+          <button
+            onClick={() => setCategoryFilter("terapia_integral")}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+              categoryFilter === "terapia_integral" ? "bg-white text-purple-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Puzzle className="h-4 w-4 text-purple-600" /> 🧩 Terapia Integral ({integralCount})
+          </button>
+        </div>
+
+        {/* Buscador general */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por paciente, cédula o diagnóstico..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
       {activePatients.length === 0 && patients.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
           <div className="h-16 w-16 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
-            <svg className="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <Users className="h-8 w-8 text-indigo-400" />
           </div>
-          <h3 className="text-base font-semibold text-gray-900 mb-1">No hay pacientes registrados</h3>
-          <p className="text-sm text-gray-500 mb-5">Comienza registrando a tu primer paciente</p>
-          <Link href="/patients/new" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 inline-flex items-center gap-2">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          <h3 className="text-base font-semibold text-gray-900 mb-1 font-outfit">No hay pacientes registrados</h3>
+          <p className="text-sm text-gray-500 mb-5">Comienza registrando a tu primer paciente de Terapia Física o Terapia Integral</p>
+          <Link href="/patients/new" className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 inline-flex items-center gap-2">
+            <Plus className="h-4 w-4" />
             Registrar Paciente
           </Link>
         </div>
@@ -175,17 +287,21 @@ export default function PatientsPage() {
           {filterList(activePatients).map(p => (
             <PatientCard key={p.id} patient={p} />
           ))}
-          {filterList(activePatients).length === 0 && search && (
+          {filterList(activePatients).length === 0 && (
             <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-              <p className="text-sm text-gray-500">No se encontraron pacientes con &quot;{search}&quot;</p>
+              <p className="text-xs font-semibold text-gray-500">
+                {search 
+                  ? `No se encontraron pacientes que coincidan con "${search}"`
+                  : `No hay pacientes registrados en la categoría seleccionada.`}
+              </p>
             </div>
           )}
         </div>
       )}
 
       {inactivePatients.length > 0 && (
-        <div>
-          <button onClick={() => setShowInactive(!showInactive)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        <div className="pt-4 border-t border-gray-200">
+          <button onClick={() => setShowInactive(!showInactive)} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors">
             <svg className={`h-4 w-4 transition-transform ${showInactive ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             {inactivePatients.length} paciente{inactivePatients.length !== 1 ? "s" : ""} inactivo{inactivePatients.length !== 1 ? "s" : ""}
           </button>

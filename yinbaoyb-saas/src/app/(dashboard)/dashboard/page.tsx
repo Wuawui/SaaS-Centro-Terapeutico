@@ -151,7 +151,7 @@ export default function DashboardPage() {
       sub: "Pendientes de revisión",
       icon: ClipboardCheck,
       color: "bg-yellow-50 text-yellow-600",
-      href: "/clinical",
+      href: "/patients",
     },
     {
       name: "Alertas clínicas",
@@ -159,7 +159,7 @@ export default function DashboardPage() {
       sub: "Escalas con riesgo",
       icon: AlertTriangle,
       color: "bg-red-50 text-red-600",
-      href: "/clinical",
+      href: "/patients",
     },
   ];
 
@@ -228,7 +228,7 @@ export default function DashboardPage() {
             </div>
           </Link>
           <Link
-            href="/clinical"
+            href="/patients"
             className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-amber-50/10 border border-gray-200 hover:border-amber-200/60 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group shadow-sm"
           >
             <div className="h-9 w-9 rounded-xl bg-amber-600 flex items-center justify-center shadow-sm shadow-amber-200">

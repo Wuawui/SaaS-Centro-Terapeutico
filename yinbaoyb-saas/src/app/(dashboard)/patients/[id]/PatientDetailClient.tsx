@@ -60,6 +60,33 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
 
+  const [pdfUrl, setPdfUrl] = useState<string | null>(() => {
+    if (patient.medical_history?.startsWith("data:application/pdf")) {
+      return patient.medical_history;
+    }
+    return null;
+  });
+
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
+      alert("Por favor selecciona un archivo en formato PDF.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("El archivo PDF supera el tamaño máximo permitido de 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64 = evt.target?.result as string;
+      setPdfUrl(base64);
+      setForm(prev => ({ ...prev, medical_history: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const isEvaluation = (content?: string) => {
     return content?.trim().startsWith('{"type":"evaluacion"') ?? false;
   };
@@ -206,8 +233,18 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
   };
 
   const handleDelete = async () => {
-    alert("Por políticas de conservación de datos clínicos (Cero Pérdida), los pacientes no pueden ser eliminados permanentemente del sistema. Por favor, cambie su estado a 'Inactivo' en la configuración de la ficha para archivarlo de forma segura.");
-    setSaving(false);
+    if (!confirm(`¿Estás seguro de eliminar permanentemente a ${patient.first_name} ${patient.last_name}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    setSaving(true);
+    const { error: delErr } = await supabase.from("patients").delete().eq("id", patient.id);
+    if (delErr) {
+      alert("Error al eliminar el paciente: " + delErr.message);
+      setSaving(false);
+      return;
+    }
+    router.push("/patients");
+    router.refresh();
   };
 
   const status = statusFlow[patient.status] || { label: patient.status, color: "bg-gray-50 text-gray-700 border-gray-200", next: [] };
@@ -320,7 +357,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
 
       <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* ── ACCIONES RÁPIDAS ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
           <a href="/clinical" className="flex items-center gap-3 px-4 py-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded-2xl transition-colors">
             <div className="h-9 w-9 rounded-xl bg-emerald-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></div>
             <div><p className="text-sm font-semibold text-emerald-900">Nueva Nota</p><p className="text-[10px] text-emerald-600/70 hidden sm:block">Escribir nota clínica</p></div>
@@ -328,10 +365,6 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
           <a href="/agenda" className="flex items-center gap-3 px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-2xl transition-colors">
             <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
             <div><p className="text-sm font-semibold text-blue-900">Agendar Cita</p><p className="text-[10px] text-blue-600/70 hidden sm:block">Programar sesión</p></div>
-          </a>
-          <a href="/clinical" className="flex items-center gap-3 px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-2xl transition-colors">
-            <div className="h-9 w-9 rounded-xl bg-purple-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg></div>
-            <div><p className="text-sm font-semibold text-purple-900">Aplicar Escala</p><p className="text-[10px] text-purple-600/70 hidden sm:block">Evaluación clínica</p></div>
           </a>
           <button onClick={() => setActiveTab("padre")} className="flex items-center gap-3 px-4 py-3 bg-amber-50 hover:bg-amber-100 border border-amber-100 rounded-2xl transition-colors text-left">
             <div className="h-9 w-9 rounded-xl bg-amber-600 flex items-center justify-center flex-shrink-0"><svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
@@ -343,7 +376,6 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
         <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
           {([
             { key: "info" as const, label: "Datos del Paciente", icon: "📋", count: 0, alert: false },
-            { key: "escalas" as const, label: "Escalas", icon: "📊", count: scaleResults.length, alert: riskAlerts > 0 },
             { key: "notas" as const, label: "Notas Clínicas", icon: "📝", count: clinicalNotesList.length, alert: unsignedNotes > 0 },
             { key: "evaluaciones" as const, label: "Evaluaciones", icon: "📁", count: evaluationsList.length, alert: false },
             { key: "informes" as const, label: "Informes", icon: "📄", count: reportsList.length, alert: false },
@@ -510,7 +542,61 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
                       <div><label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico (CIE-10)</label><input name="primary_diagnosis" value={form.primary_diagnosis} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                       <div><label className="block text-sm font-medium text-gray-700 mb-1">Descripción Diagnóstico</label><input name="primary_diagnosis_desc" value={form.primary_diagnosis_desc} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                       <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Medicación</label><textarea name="current_medication" value={form.current_medication} onChange={handleChange} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-                      <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Historial Clínico / Antecedentes</label><textarea name="medical_history" value={form.medical_history} onChange={handleChange} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Historial Clínico / Antecedentes</label>
+                        {!pdfUrl && (
+                          <textarea name="medical_history" value={form.medical_history} onChange={handleChange} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none mb-3" placeholder="Escribe observaciones o adjunta el PDF abajo..." />
+                        )}
+                        
+                        {/* Adjuntar PDF max 5MB con previsualización */}
+                        <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider">
+                              📄 Adjuntar Ficha / Historial en PDF (Máx 5MB - Solo Admin)
+                            </label>
+                            {pdfUrl && (
+                              <button
+                                type="button"
+                                onClick={() => { setPdfUrl(null); setForm(prev => ({ ...prev, medical_history: "" })); }}
+                                className="text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 transition-colors"
+                              >
+                                🗑️ Eliminar PDF
+                              </button>
+                            )}
+                          </div>
+
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={handlePdfUpload}
+                            className="block w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                          />
+                          <p className="text-[11px] text-indigo-600/80">Formatos permitidos: PDF de hasta 5MB con visor de previsualización en vivo.</p>
+
+                          {pdfUrl && (
+                            <div className="mt-3 space-y-2">
+                              <div className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-indigo-200 shadow-xs">
+                                <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 font-outfit">
+                                  📄 Previsualización en Vivo del Historial Clínico PDF
+                                </span>
+                                <a
+                                  href={pdfUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-bold text-indigo-600 hover:underline inline-flex items-center gap-1"
+                                >
+                                  ↗️ Pantalla completa
+                                </a>
+                              </div>
+                              <iframe
+                                src={pdfUrl}
+                                className="w-full h-80 rounded-xl border border-indigo-200 shadow-inner bg-slate-900"
+                                title="Previsualización Historial Clínico PDF"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -559,7 +645,30 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
                         <Field label="Descripción" value={patient.primary_diagnosis_desc} />
                       </div>
                       <Field label="Medicación" value={patient.current_medication} />
-                      <Field label="Historial" value={patient.medical_history} />
+                      {pdfUrl ? (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 font-outfit">
+                              📄 Ficha de Historial Clínico Adjunta (Documento PDF)
+                            </label>
+                            <a
+                              href={pdfUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-bold text-indigo-600 hover:underline inline-flex items-center gap-1"
+                            >
+                              ↗️ Abrir PDF completo
+                            </a>
+                          </div>
+                          <iframe
+                            src={pdfUrl}
+                            className="w-full h-96 rounded-xl border border-gray-200 bg-slate-900 shadow-sm"
+                            title="Visor Historial Clínico PDF"
+                          />
+                        </div>
+                      ) : (
+                        <Field label="Historial" value={patient.medical_history} />
+                      )}
                     </dl>
                   </div>
                   {(patient.insurance_provider || patient.insurance_policy) && (

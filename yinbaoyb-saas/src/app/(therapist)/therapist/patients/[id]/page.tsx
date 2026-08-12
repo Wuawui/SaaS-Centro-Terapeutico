@@ -354,7 +354,6 @@ export default function TherapistPatientDetailPage() {
           {[
             { key: "appointments", label: "Citas", count: appointments.length },
             { key: "notes", label: "Notas Clínicas", count: clinicalNotesList.length },
-            { key: "scales", label: "Escalas", count: scales.length },
             { key: "evaluaciones", label: "Subir Evaluaciones", count: evaluationsList.length },
             { key: "informes", label: "Subir Informes", count: reportsList.length },
             { key: "ai_evolution", label: "Evolución IA", count: "✨" },

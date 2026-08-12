@@ -44,6 +44,28 @@ export default function NewPatientPage() {
     insurance_policy: "",
   });
 
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
+      alert("Por favor selecciona un archivo en formato PDF.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("El archivo PDF supera el tamaño máximo permitido de 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64 = evt.target?.result as string;
+      setPdfUrl(base64);
+      setForm(prev => ({ ...prev, medical_history: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     if (!tenantId) return;
     async function loadTherapists() {
@@ -109,12 +131,7 @@ export default function NewPatientPage() {
       return;
     }
 
-    // Redirigir según el servicio seleccionado
-    if (form.specialty_area === "terapia_fisica" && newPat) {
-      router.push(`/therapist/physical-therapy/histories/new?patientId=${newPat.id}`);
-    } else {
-      router.push("/patients");
-    }
+    router.push("/patients");
     router.refresh();
   };
 
@@ -131,7 +148,7 @@ export default function NewPatientPage() {
             </a>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Nuevo Paciente</h1>
-              <p className="text-xs text-gray-500">Registro de datos personales y asignación de terapia física</p>
+              <p className="text-xs text-gray-500">Registro de datos personales y asignación de especialidad</p>
             </div>
           </div>
         </div>
@@ -150,7 +167,7 @@ export default function NewPatientPage() {
             <h2 className="text-base font-bold mb-1 font-outfit flex items-center gap-2">
               🏃 Asignación de Especialidad & Terapeuta
             </h2>
-            <p className="text-xs text-teal-200/80 mb-4">Configura si el paciente asistirá a Terapia Física / Rehabilitación</p>
+            <p className="text-xs text-teal-200/80 mb-4">Selecciona el área de atención y el profesional a cargo</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -161,9 +178,8 @@ export default function NewPatientPage() {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
                 >
-                  <option value="terapia_fisica">🏃 Terapia Física / Rehabilitación (PDF 35 Páginas)</option>
-                  <option value="pedagogia">🧩 Terapia Pedagógica / Neuropsicología</option>
-                  <option value="multidisciplinar">⭐ Atención Multidisciplinaria / Híbrida</option>
+                  <option value="terapia_fisica">🏃 Terapia Física / Rehabilitación</option>
+                  <option value="terapia_integral">🧩 Terapia Integral / Atención Temprana</option>
                 </select>
               </div>
 
@@ -369,6 +385,70 @@ export default function NewPatientPage() {
                   placeholder="Ej: Lumbalgia mecánica con espasmo paravertebral"
                 />
               </div>
+
+              {/* Historial Clínico y PDF */}
+              <div className="md:col-span-2 space-y-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Historial Clínico / Antecedentes</label>
+                {!pdfUrl && (
+                  <textarea
+                    name="medical_history"
+                    value={form.medical_history}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="Escribe observaciones clínicas o adjunta la ficha en PDF a continuación..."
+                  />
+                )}
+
+                {/* Componente PDF Max 5MB */}
+                <div className="bg-teal-50/50 p-4 rounded-2xl border border-teal-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-teal-900 uppercase tracking-wider font-outfit">
+                      📄 Adjuntar Ficha / Historial Clínico en PDF (Máx 5MB - Solo Admin)
+                    </label>
+                    {pdfUrl && (
+                      <button
+                        type="button"
+                        onClick={() => { setPdfUrl(null); setForm(prev => ({ ...prev, medical_history: "" })); }}
+                        className="text-xs font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 transition-colors"
+                      >
+                        🗑️ Eliminar PDF
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfUpload}
+                    className="block w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
+                  />
+                  <p className="text-[11px] text-teal-700/80">Archivos PDF de hasta 5MB con previsualización en vivo en pantalla.</p>
+
+                  {pdfUrl && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-teal-200 shadow-xs">
+                        <span className="text-xs font-bold text-teal-950 flex items-center gap-1.5 font-outfit">
+                          📄 Previsualización en Vivo de Ficha PDF
+                        </span>
+                        <a
+                          href={pdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-bold text-teal-700 hover:underline inline-flex items-center gap-1"
+                        >
+                          ↗️ Abrir pantalla completa
+                        </a>
+                      </div>
+                      <iframe
+                        src={pdfUrl}
+                        className="w-full h-80 rounded-xl border border-teal-200 shadow-inner bg-slate-900"
+                        title="Previsualización Historial PDF"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -385,7 +465,7 @@ export default function NewPatientPage() {
               disabled={loading}
               className="px-6 py-2.5 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 shadow-sm"
             >
-              {loading ? "Guardando..." : "Crear Paciente e Iniciar Ficha FISIOJOY"}
+              {loading ? "Guardando..." : "Crear Paciente"}
             </button>
           </div>
         </form>

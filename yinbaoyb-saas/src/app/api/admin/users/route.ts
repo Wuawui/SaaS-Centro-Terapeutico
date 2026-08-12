@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
-  // Verificar que el usuario que hace la petición es admin
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-  // Obtener el token del usuario autenticado
   const authHeader = request.headers.get("authorization");
   const userToken = authHeader?.replace("Bearer ", "");
 
@@ -16,7 +12,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  // Verificar que es admin
+  // Verificar admin
   const adminRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: { Authorization: `Bearer ${userToken}`, apikey: anonKey },
   });
@@ -41,30 +37,53 @@ export async function GET(request: Request) {
   }
 
   try {
+    const fetchHeaders = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
+
     // 1. Obtener todos los perfiles del tenant actual
     const allProfilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?tenant_id=eq.${userProfile.tenant_id}&select=id,first_name,last_name,phone,role,active,tenant_id&order=role.asc`, {
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+      headers: fetchHeaders,
     });
-    const allProfiles = await allProfilesRes.json();
+    const allProfiles = (await allProfilesRes.json()) || [];
 
-    // 2. Obtener todos los usuarios de Auth (emails) max 1000
-    // Usando el Service_Role key podemos leer todos los de Auth
+    // 2. Obtener todos los pacientes registrados de la tabla patients
+    const allPatientsRes = await fetch(`${supabaseUrl}/rest/v1/patients?tenant_id=eq.${userProfile.tenant_id}&select=id,first_name,last_name,phone,email,active&order=created_at.desc`, {
+      headers: fetchHeaders,
+    });
+    const allPatients = (await allPatientsRes.json()) || [];
+
+    // 3. Obtener usuarios de Auth
     const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+      headers: fetchHeaders,
     });
     const authData = await authRes.json();
     const authUsers = authData.users || [];
 
-    // Mapear los arreglos (join)
-    const combinedData = allProfiles.map((p: any) => {
-        const u = authUsers.find((user: any) => user.id === p.id);
-        return {
-            ...p,
-            email: u ? u.email : null,
-        };
+    // Mapear perfiles
+    const combinedProfiles = allProfiles.map((p: any) => {
+      const u = authUsers.find((user: any) => user.id === p.id);
+      return {
+        ...p,
+        email: u ? u.email : null,
+      };
     });
 
-    return NextResponse.json({ users: combinedData });
+    // Mapear pacientes registrados que no tengan perfil aún para reflejarlos bajo "Niños (Pacientes de Terapias)"
+    const existingIds = new Set(combinedProfiles.map((p: any) => p.id));
+    const patientUsers = allPatients
+      .filter((pat: any) => !existingIds.has(pat.id))
+      .map((pat: any) => ({
+        id: pat.id,
+        first_name: pat.first_name,
+        last_name: pat.last_name,
+        phone: pat.phone || null,
+        email: pat.email || "Registro Ficha Clínica",
+        role: "paciente",
+        active: pat.active !== false,
+      }));
+
+    const finalUsers = [...combinedProfiles, ...patientUsers];
+
+    return NextResponse.json({ users: finalUsers });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Error cargando usuarios" }, { status: 500 });
   }

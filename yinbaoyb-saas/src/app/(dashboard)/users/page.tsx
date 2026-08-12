@@ -233,12 +233,10 @@ export default function UsersPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
               <select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <option value="paciente">👶 Niños (Pacientes de Terapias)</option>
                 <option value="padre">👨‍👩‍👧 Padre/Acudiente</option>
-                <option value="terapeuta">👩‍⚕️ Terapeuta (Pedagógico / Neuropsicología)</option>
+                <option value="terapeuta">👩‍⚕️ Terapeuta (Integral / Atención Temprana)</option>
                 <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física)</option>
-                <option value="coordinador">📋 Coordinador/a</option>
-                <option value="director">👔 Director/a</option>
-                <option value="admin">⚙️ Administrativo/a</option>
               </select>
             </div>
             <div className="md:col-span-2 flex justify-end gap-3 mt-2">
@@ -253,7 +251,7 @@ export default function UsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="overflow-x-auto scrollbar-none">
           <div className="flex bg-gray-100 rounded-lg p-0.5 min-w-max">
-            {(["all", "terapeuta", "fisioterapeuta", "padre", "director", "coordinador", "admin"] as const).map(f => (
+            {(["all", "paciente", "padre", "terapeuta", "fisioterapeuta"] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${filter === f ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
                 {f === "all" ? `Todos (${users.length})` : roleLabels[f] || f}
               </button>
@@ -408,12 +406,10 @@ export default function UsersPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                   <select value={editForm.role} onChange={e => setEditForm({...editForm, role: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="paciente">👶 Niños (Pacientes de Terapias)</option>
                     <option value="padre">👨‍👩‍👧 Padre/Acudiente</option>
-                    <option value="terapeuta">👩‍⚕️ Terapeuta (Pedagógico / Neuropsicología)</option>
+                    <option value="terapeuta">👩‍⚕️ Terapeuta (Integral / Atención Temprana)</option>
                     <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física)</option>
-                    <option value="coordinador">📋 Coordinador/a</option>
-                    <option value="director">👔 Director/a</option>
-                    <option value="admin">⚙️ Administrativo/a</option>
                   </select>
                 </div>
                 <div>
