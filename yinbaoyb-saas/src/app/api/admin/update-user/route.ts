@@ -55,7 +55,7 @@ export async function PUT(request: Request) {
     if (first_name !== undefined) updates.first_name = first_name;
     if (last_name !== undefined) updates.last_name = last_name;
     if (phone !== undefined) updates.phone = phone;
-    if (role !== undefined) updates.role = role;
+    if (role !== undefined) updates.role = role === "fisioterapeuta" ? "terapeuta" : role;
     if (active !== undefined) updates.active = active;
 
     const profileUpdateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${id}`, {

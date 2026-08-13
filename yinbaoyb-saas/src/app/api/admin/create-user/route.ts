@@ -88,11 +88,14 @@ export async function POST(request: Request) {
 
   const userId = userData.id;
 
+  // Mapear rol para la restricción check de la tabla profiles (profiles_role_check acepta super_admin, director, coordinador, terapeuta, administrativo, paciente)
+  const profileRole = role === "fisioterapeuta" ? "terapeuta" : (role || "terapeuta");
+
   // Crear perfil
   const profileBody = {
     id: userId,
     tenant_id: userTenantId,
-    role: role || "terapeuta",
+    role: profileRole,
     first_name,
     last_name,
     phone: phone || null,
@@ -121,9 +124,10 @@ export async function POST(request: Request) {
   // Si es terapeuta o fisioterapeuta, crear registro en therapists
   const isTherapistRole = (role === "terapeuta" || role === "fisioterapeuta" || !role);
   if (isTherapistRole) {
+    const defaultSpecialty = role === "fisioterapeuta" ? "Fisioterapia / Terapia Física" : "Terapia Integral";
     const therapistBody: Record<string, unknown> = {
       id: userId,
-      specialty: specialty || null,
+      specialty: specialty || defaultSpecialty,
       license_number: license_number || null,
       therapeutic_approach: therapeutic_approach?.length > 0 ? therapeutic_approach : null,
       max_patients: max_patients || 20,
