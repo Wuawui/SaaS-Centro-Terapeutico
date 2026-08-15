@@ -8,11 +8,13 @@ import { useToast } from "@/components/ui/Toast";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { PATIENT_STATUS_CONFIG } from "@/lib/constants";
 import { Activity, Puzzle, Users, Plus, Search } from "lucide-react";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 interface Patient {
   id: string;
   first_name: string;
   last_name: string;
+  avatar_url?: string | null;
   document_number: string | null;
   phone: string | null;
   email: string | null;
@@ -39,33 +41,51 @@ export default function PatientsPage() {
   const supabase = createClient();
   const { tenantId } = useSession();
 
-  useEffect(() => { if (tenantId) fetchPatients(); }, [tenantId]);
+  useEffect(() => {
+    fetchPatients();
+  }, [tenantId]);
 
   async function fetchPatients() {
-    if (!tenantId) { setLoading(false); return; }
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
     try {
-      const [patRes, profRes] = await Promise.all([
+      const [patRes, profRes, thRes] = await Promise.all([
         supabase
           .from("patients")
-          .select("id, first_name, last_name, document_number, phone, email, status, primary_diagnosis, primary_diagnosis_desc, reason_for_consultation, therapist_id, active, created_at")
+          .select("id, first_name, last_name, emergency_contact, document_number, phone, email, status, primary_diagnosis, primary_diagnosis_desc, reason_for_consultation, therapist_id, active, created_at")
           .eq("tenant_id", tenantId)
           .order("created_at", { ascending: false }),
         supabase
           .from("profiles")
           .select("id, role")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", tenantId),
+        supabase
+          .from("therapists")
+          .select("id, specialty")
       ]);
 
       if (patRes.error) {
         setErrorMsg(`Error: ${patRes.error.message}`);
       } else {
-        const profMap = new Map((profRes.data || []).map((p: { id: string; role: string }) => [p.id, p.role]));
-        const enriched = (patRes.data || []).map((p: any) => ({
-          ...p,
-          therapist_role: p.therapist_id ? profMap.get(p.therapist_id) : undefined
-        }));
+        const profMap = new Map<string, string>((profRes.data || []).map((p: any) => [p.id, p.role]));
+        const thMap = new Map<string, string>((thRes.data || []).map((t: any) => [t.id, String(t.specialty || "")]));
+
+        const enriched = (patRes.data || []).map((p: any) => {
+          const pRole = p.therapist_id ? profMap.get(p.therapist_id) : undefined;
+          const tSpec = p.therapist_id ? thMap.get(p.therapist_id) : undefined;
+          const isPhysioTherapist = pRole === "fisioterapeuta" || 
+            (typeof tSpec === "string" && (tSpec.toLowerCase().includes("fisica") || tSpec.toLowerCase().includes("fisio") || tSpec.toLowerCase().includes("rehabilitacion")));
+          
+          return {
+            ...p,
+            avatar_url: p.emergency_contact || null,
+            therapist_role: isPhysioTherapist ? "fisioterapeuta" : pRole
+          };
+        });
         setPatients(enriched);
       }
     } catch (err: any) {
@@ -143,15 +163,18 @@ export default function PatientsPage() {
         }`}
       >
         <div className="flex items-center gap-4">
-          <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm ${
-            inactive 
-              ? "bg-gray-400" 
-              : category === "terapia_fisica" 
-              ? "bg-gradient-to-br from-teal-500 to-emerald-600" 
-              : "bg-gradient-to-br from-indigo-500 to-purple-600"
-          }`}>
-            {initials}
-          </div>
+          <UserAvatar
+            src={patient.avatar_url}
+            name={`${patient.first_name} ${patient.last_name}`}
+            size="md"
+            fallbackGradient={
+              inactive
+                ? "from-gray-400 to-gray-500"
+                : category === "terapia_fisica"
+                ? "from-teal-500 to-emerald-600"
+                : "from-indigo-500 to-purple-600"
+            }
+          />
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">

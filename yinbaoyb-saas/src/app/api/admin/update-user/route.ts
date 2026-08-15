@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
+import { validateUpdateUser } from "@/lib/validations";
 
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, first_name, last_name, phone, role, password, active } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "Falta el ID del usuario" }, { status: 400 });
+    
+    const validation = validateUpdateUser(body);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+
+    const { id, first_name, last_name, phone, role, password, active } = body;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -55,18 +58,66 @@ export async function PUT(request: Request) {
     if (first_name !== undefined) updates.first_name = first_name;
     if (last_name !== undefined) updates.last_name = last_name;
     if (phone !== undefined) updates.phone = phone;
-    if (role !== undefined) updates.role = role === "fisioterapeuta" ? "terapeuta" : role;
     if (active !== undefined) updates.active = active;
+    if (body.avatar_url !== undefined) updates.avatar_url = body.avatar_url;
 
+    const isPhysio = role === "fisioterapeuta";
+    if (role !== undefined) {
+      updates.role = isPhysio ? "terapeuta" : role;
+    }
+
+    // Intentar actualizar profile
     const profileUpdateRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${id}`, {
       method: "PATCH",
       headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
 
-    if (!profileUpdateRes.ok) {
-      const errorData = await profileUpdateRes.json();
-      return NextResponse.json({ error: "Error actualizando perfil", details: errorData }, { status: 400 });
+    // 5. Gestionar tabla therapists según el rol
+    if (role !== undefined || body.specialty !== undefined) {
+      if (isPhysio || role === "terapeuta") {
+        // Upsert en therapists
+        await fetch(`${supabaseUrl}/rest/v1/therapists`, {
+          method: "POST",
+          headers: { 
+            apikey: serviceKey, 
+            Authorization: `Bearer ${serviceKey}`, 
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+          },
+          body: JSON.stringify({
+            id: id,
+            specialty: isPhysio 
+              ? (body.specialty || "Terapia Física / Fisioterapia") 
+              : (body.specialty || "Terapia Integral"),
+            license_number: body.license_number || null,
+            active: active !== false,
+          }),
+        });
+      } else if (["padre", "paciente", "admin"].includes(role)) {
+        // Si cambió de terapeuta a otro rol, desactivar en therapists
+        await fetch(`${supabaseUrl}/rest/v1/therapists?id=eq.${id}`, {
+          method: "PATCH",
+          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ active: false }),
+        });
+      }
+    }
+
+    // 6. Si el usuario existe en la tabla patients (o es paciente), actualizar también su registro clínico
+    const patientUpdates: any = {};
+    if (first_name !== undefined) patientUpdates.first_name = first_name;
+    if (last_name !== undefined) patientUpdates.last_name = last_name;
+    if (phone !== undefined) patientUpdates.phone = phone;
+    if (active !== undefined) patientUpdates.active = active;
+    if (body.avatar_url !== undefined) patientUpdates.emergency_contact = body.avatar_url;
+
+    if (Object.keys(patientUpdates).length > 0) {
+      await fetch(`${supabaseUrl}/rest/v1/patients?id=eq.${id}`, {
+        method: "PATCH",
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(patientUpdates),
+      });
     }
 
     return NextResponse.json({ success: true });

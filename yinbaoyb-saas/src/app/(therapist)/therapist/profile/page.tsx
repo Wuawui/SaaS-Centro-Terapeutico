@@ -1,38 +1,82 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "@/components/providers/SessionProvider";
+import { createClient } from "@/lib/supabase/client";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { ROLE_LABELS } from "@/lib/constants";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 export default function TherapistProfilePage() {
-  const { profile, user, loading } = useSession();
+  const { profile, user, loading, refreshTenant } = useSession();
+  const supabase = createClient();
+  const [savingPhoto, setSavingPhoto] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
   if (loading || !profile) {
     return <PageLoading text="Cargando perfil..." color="text-teal-600" />;
   }
 
+  const handlePhotoChange = async (newBase64: string | null) => {
+    if (!user) return;
+    setSavingPhoto(true);
+    setMsg(null);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: newBase64, updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+      
+      if (error) {
+        setMsg("Error al guardar foto: " + error.message);
+      } else {
+        setMsg("Foto carnet actualizada exitosamente ✓");
+        await refreshTenant();
+        setTimeout(() => setMsg(null), 3000);
+      }
+    } catch (err: any) {
+      setMsg(err.message || "Error al actualizar foto");
+    }
+    setSavingPhoto(false);
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
-        <p className="text-sm text-gray-500 mt-1">Información de tu cuenta</p>
+        <p className="text-sm text-gray-500 mt-1">Información de tu cuenta y credencial profesional</p>
       </div>
 
-      {/* Info banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <p className="text-sm text-blue-800">👤 <strong>Solo lectura.</strong> Si necesitas cambiar tu nombre, teléfono u otros datos, contacta al administrador del centro.</p>
-      </div>
+      {msg && (
+        <div className={`p-3 rounded-xl text-sm font-medium ${msg.includes("Error") ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+          {msg}
+        </div>
+      )}
 
-      {/* Profile card — SOLO LECTURA */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-16 w-16 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 text-2xl font-bold">
-            {profile.first_name?.[0] || "?"}{profile.last_name?.[0] || "?"}
+      {/* Profile card con Foto Carnet */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-gray-100">
+          <div className="flex items-center gap-4">
+            <UserAvatar
+              src={profile.avatar_url}
+              name={`${profile.first_name} ${profile.last_name}`}
+              size="xl"
+              fallbackGradient="from-teal-500 to-emerald-600"
+            />
+            <div>
+              <p className="text-lg font-bold text-gray-900">{profile.first_name} {profile.last_name}</p>
+              <p className="text-sm text-teal-600 font-medium">{ROLE_LABELS[profile.role] || "Terapeuta"}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-lg font-semibold text-gray-900">{profile.first_name} {profile.last_name}</p>
-            <p className="text-sm text-teal-600 font-medium">Terapeuta</p>
-          </div>
+
+          <AvatarUpload
+            value={profile.avatar_url}
+            onChange={handlePhotoChange}
+            disabled={savingPhoto}
+            label="Actualizar Foto Carnet"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

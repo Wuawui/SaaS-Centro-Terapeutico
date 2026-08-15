@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 export default function ParentChildPage() {
   const supabase = createClient();
@@ -21,7 +22,10 @@ export default function ParentChildPage() {
       if (rpcErr) { setError(rpcErr.message); setLoading(false); return; }
 
       if (data && data.length > 0) {
-        setChild(data[0]);
+        setChild({
+          ...data[0],
+          avatar_url: data[0].emergency_contact || data[0].avatar_url || null,
+        });
         if (data[0].therapist_id) {
           const { data: tData } = await supabase.rpc("get_profile_by_id", { profile_id: data[0].therapist_id });
           const tProfile = Array.isArray(tData) ? tData[0] : tData;
@@ -46,9 +50,12 @@ export default function ParentChildPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-2xl">
-            {child.first_name[0]}{child.last_name[0]}
-          </div>
+          <UserAvatar
+            src={child.avatar_url}
+            name={`${child.first_name} ${child.last_name}`}
+            size="xl"
+            fallbackGradient="from-emerald-500 to-teal-600"
+          />
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{child.first_name} {child.last_name}</h2>
             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${child.status === "activo" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>

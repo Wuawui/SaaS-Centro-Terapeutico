@@ -8,10 +8,13 @@ import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ROLE_LABELS } from "@/lib/constants";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 interface TherapistProfile {
   id: string; first_name: string; last_name: string;
   phone: string | null; email: string | null; active: boolean; role: string;
+  avatar_url?: string | null;
 }
 
 interface TherapistData {
@@ -53,7 +56,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
   const [newSlot, setNewSlot] = useState({ day_of_week: 1, start_time: "09:00", end_time: "17:00" });
 
   // Edit form
-  const [form, setForm] = useState({ role: "terapeuta", specialty: "", license_number: "", max_patients: 20, phone: "", therapeutic_approach: [] as string[], certifications: [] as string[] });
+  const [form, setForm] = useState({ role: "terapeuta", avatar_url: "", specialty: "", license_number: "", max_patients: 20, phone: "", therapeutic_approach: [] as string[], certifications: [] as string[] });
   const [approachInput, setApproachInput] = useState("");
   const [customApproachText, setCustomApproachText] = useState("");
   const [certInput, setCertInput] = useState("");
@@ -125,9 +128,16 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
       profiles: profile || null,
     };
 
+    const isPhysio = profile?.role === "terapeuta" && (
+      (tData.specialty || "").toLowerCase().includes("fisio") ||
+      (tData.specialty || "").toLowerCase().includes("fisica") ||
+      (tData.specialty || "").toLowerCase().includes("física")
+    );
+
     setTherapist(combined as unknown as TherapistData);
     setForm({
-      role: profile?.role || "terapeuta",
+      role: isPhysio ? "fisioterapeuta" : (profile?.role || "terapeuta"),
+      avatar_url: profile?.avatar_url || "",
       specialty: tData.specialty || "",
       license_number: tData.license_number || "",
       max_patients: tData.max_patients || 20,
@@ -155,23 +165,52 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
 
   async function handleSave() {
     setSaving(true); setError(null);
-    const { error: err1 } = await supabase.from("therapists").update({
-      specialty: form.specialty || null,
-      license_number: form.license_number || null,
-      max_patients: form.max_patients,
-      therapeutic_approach: form.therapeutic_approach.length > 0 ? form.therapeutic_approach : null,
-      certifications: form.certifications.length > 0 ? form.certifications : null,
-    }).eq("id", id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // 1. Actualizar datos de terapeuta
+      const { error: err1 } = await supabase.from("therapists").update({
+        specialty: form.role === "fisioterapeuta" && !form.specialty ? "Terapia Física / Fisioterapia" : (form.specialty || null),
+        license_number: form.license_number || null,
+        max_patients: form.max_patients,
+        therapeutic_approach: form.therapeutic_approach.length > 0 ? form.therapeutic_approach : null,
+        certifications: form.certifications.length > 0 ? form.certifications : null,
+      }).eq("id", id);
 
-    if (err1) { setError(err1.message); setSaving(false); return; }
+      if (err1) { setError(err1.message); setSaving(false); return; }
 
-    const { error: err2 } = await supabase.from("profiles").update({ 
-      phone: form.phone || null,
-      role: form.role || "terapeuta"
-    }).eq("id", id);
-    if (err2) { setError(err2.message); setSaving(false); return; }
+      // 2. Actualizar perfil y rol a través de la API administrativa con service_role
+      const res = await fetch("/api/admin/update-user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          id: id,
+          phone: form.phone || null,
+          role: form.role,
+          specialty: form.specialty || (form.role === "fisioterapeuta" ? "Terapia Física / Fisioterapia" : undefined),
+          license_number: form.license_number || undefined,
+          avatar_url: form.avatar_url || null,
+        }),
+      });
 
-    setEditing(false); setSaving(false); loadData();
+      const resData = await res.json();
+      if (!res.ok) {
+        setError(resData.error || "Error actualizando perfil");
+        setSaving(false);
+        return;
+      }
+
+      toast.addToast("Perfil profesional actualizado con éxito", "success");
+      setEditing(false);
+      setSaving(false);
+      loadData();
+    } catch (err: any) {
+      setError(err.message || "Error al guardar");
+      setSaving(false);
+    }
   }
 
   async function handleAddAvailability(e: React.FormEvent) {
@@ -370,9 +409,12 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
 
           <div className="flex flex-col sm:flex-row sm:items-start gap-5">
             {/* Avatar */}
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
-              {initials}
-            </div>
+            <UserAvatar
+              src={p?.avatar_url}
+              name={name}
+              size="xl"
+              fallbackGradient={therapist.active ? "from-indigo-500 to-purple-600" : "from-gray-400 to-gray-500"}
+            />
 
             {/* Info */}
             <div className="flex-1 min-w-0">
@@ -474,6 +516,13 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
               </div>
               {editing ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <AvatarUpload
+                      value={form.avatar_url}
+                      onChange={(val) => setForm({ ...form, avatar_url: val || "" })}
+                      label="Actualizar Foto del Profesional (Tamaño Carnet)"
+                    />
+                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Rol / Especialidad Principal</label>
                     <select 

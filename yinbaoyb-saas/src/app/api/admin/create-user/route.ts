@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
+import { validateCreateUser } from "@/lib/validations";
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "JSON de solicitud inválido" }, { status: 400 });
+  }
+
+  const validation = validateCreateUser(body);
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
+
   const { email, password, first_name, last_name, phone, role, tenant_id, specialty, license_number, therapeutic_approach, max_patients } = body;
 
   // Verificar que el usuario que hace la petición es admin
@@ -99,6 +111,7 @@ export async function POST(request: Request) {
     first_name,
     last_name,
     phone: phone || null,
+    avatar_url: body.avatar_url || null,
     active: true,
   };
 

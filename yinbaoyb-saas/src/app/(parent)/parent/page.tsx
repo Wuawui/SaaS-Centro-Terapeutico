@@ -149,19 +149,15 @@ export default function ParentDashboard() {
             )}
           </Link>
 
-          <Link href="/parent/scales" className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
+          <Link href="/parent/session-logs" className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">📊</span>
-              <h3 className="text-sm font-semibold text-gray-900">Última evaluación</h3>
+              <span className="text-xl">🏃</span>
+              <h3 className="text-sm font-semibold text-gray-900">Bitácora de Evolución</h3>
             </div>
-            {lastScale ? (
-              <div>
-                <p className="text-xs text-gray-500">Puntuación: <span className="font-bold">{lastScale.total_score}</span></p>
-                {lastScale.risk_alert && <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-700 mt-1 inline-block">⚠️ Alerta</span>}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400">Sin evaluaciones</p>
-            )}
+            <p className="text-xs text-gray-500">Consulta el registro diario de avances y ejercicios terapéuticos.</p>
+            <div className="mt-2 text-[11px] font-medium text-indigo-600 flex items-center gap-1">
+              Ver sesiones y ejercicios →
+            </div>
           </Link>
 
           <Link href="/parent/appointments" className="block bg-white rounded-xl border border-gray-200 p-4 hover:shadow-sm transition-shadow">

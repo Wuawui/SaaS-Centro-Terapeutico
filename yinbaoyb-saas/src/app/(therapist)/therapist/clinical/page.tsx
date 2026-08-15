@@ -68,6 +68,34 @@ export default function TherapistClinicalPage() {
 
   // Form states
   const [generalForm, setGeneralForm] = useState({ patient_id: "", tareas: "", observaciones: "", resultados: "", recomendaciones: "" });
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Recuperar borrador offline/local al montar
+  useEffect(() => {
+    try {
+      const savedGeneral = localStorage.getItem("draft_clinical_general");
+      if (savedGeneral) {
+        const parsed = JSON.parse(savedGeneral);
+        if (parsed.tareas || parsed.observaciones || parsed.resultados || parsed.recomendaciones) {
+          setGeneralForm(parsed);
+          setDraftRestored(true);
+        }
+      }
+    } catch (e) {
+      console.warn("Error leyendo borrador local:", e);
+    }
+  }, []);
+
+  // Auto-guardado de borrador cada vez que el terapeuta escribe
+  useEffect(() => {
+    try {
+      if (generalForm.tareas || generalForm.observaciones || generalForm.resultados || generalForm.recomendaciones) {
+        localStorage.setItem("draft_clinical_general", JSON.stringify(generalForm));
+      }
+    } catch (e) {
+      console.warn("Error guardando borrador local:", e);
+    }
+  }, [generalForm]);
   
   // 1. Sesión Diaria
   const [sesionForm, setSesionForm] = useState({
@@ -379,9 +407,15 @@ export default function TherapistClinicalPage() {
       signed: false,
     });
 
-    if (error) { toast.addToast("Error: " + error.message, "error"); setSaving(false); return; }
+    if (reportType === "general") {
+      try {
+        localStorage.removeItem("draft_clinical_general");
+      } catch {}
+      setGeneralForm({ patient_id: "", tareas: "", observaciones: "", resultados: "", recomendaciones: "" });
+      setDraftRestored(false);
+    }
 
-    toast.addToast("Reporte clínico de fisioterapia registrado ✓", "success");
+    toast.addToast("Nota clínica registrada con éxito ✓", "success");
     setShowNew(false);
     setSaving(false);
     loadNotes();
@@ -826,6 +860,24 @@ export default function TherapistClinicalPage() {
             {/* 9. NOTA GENERAL */}
             {reportType === "general" && (
               <div className="space-y-4">
+                {draftRestored && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      💾 <strong>Borrador local recuperado:</strong> Se cargó el texto previo no guardado en caso de desconexión.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try { localStorage.removeItem("draft_clinical_general"); } catch {}
+                        setGeneralForm({ patient_id: "", tareas: "", observaciones: "", resultados: "", recomendaciones: "" });
+                        setDraftRestored(false);
+                      }}
+                      className="text-amber-700 hover:text-amber-900 underline font-bold"
+                    >
+                      Descartar
+                    </button>
+                  </div>
+                )}
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">Paciente *</label>
                   <select value={generalForm.patient_id} required onChange={e => setGeneralForm({ ...generalForm, patient_id: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white font-medium">

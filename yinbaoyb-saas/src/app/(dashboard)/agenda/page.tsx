@@ -132,7 +132,7 @@ export default function AgendaPage() {
       .from("profiles")
       .select("id, first_name, last_name")
       .eq("tenant_id", tenantId)
-      .in("role", ["terapeuta", "coordinador", "director", "super_admin"]);
+      .in("role", ["terapeuta", "fisioterapeuta", "coordinador", "director", "super_admin"]);
     if (tData) setTherapists(tData as TherapistOption[]);
 
     // Load patients
@@ -924,6 +924,20 @@ body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#1e293b;backgro
                 <p className="text-sm"><span className="text-gray-500">Fecha:</span> {d.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })}</p>
                 <p className="text-sm"><span className="text-gray-500">Hora:</span> {apt.start_time} - {apt.end_time}</p>
                 {notesText && <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">{notesText}</p>}
+                
+                {/* Botón WhatsApp de Recordatorio Instantáneo */}
+                <div className="pt-2">
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      `Hola, te recordamos desde el centro terapéutico que ${pName} tiene su sesión programada para el ${d.toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "long" })} a las ${apt.start_time} con ${tName}. ¡Te esperamos!`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <span>💬</span> Enviar Recordatorio por WhatsApp
+                  </a>
+                </div>
               </div>
               {/* Status actions */}
               <div className="border-t border-gray-100 pt-4">

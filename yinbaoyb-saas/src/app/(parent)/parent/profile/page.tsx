@@ -3,13 +3,16 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 export default function ParentProfilePage() {
   const supabase = createClient();
-  const { profile, user } = useSession();
+  const { profile, user, refreshTenant } = useSession();
   const [firstName, setFirstName] = useState(profile?.first_name || "");
   const [lastName, setLastName] = useState(profile?.last_name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +22,7 @@ export default function ParentProfilePage() {
       setFirstName(profile.first_name || "");
       setLastName(profile.last_name || "");
       setPhone(profile.phone || "");
+      setAvatarUrl(profile.avatar_url || "");
     }
   }, [profile]);
 
@@ -29,32 +33,25 @@ export default function ParentProfilePage() {
     try {
       if (!user) { setError("No autenticado"); setSaving(false); return; }
 
-      // Primero intentar con RPC (más seguro, evita problemas de RLS)
-      const { error: rpcErr } = await supabase.rpc("update_parent_profile", {
-        p_user_id: user.id,
-        p_first_name: firstName || null,
-        p_last_name: lastName || null,
-        p_phone: phone || null,
-      });
+      const { error: err } = await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName || null,
+          last_name: lastName || null,
+          phone: phone || null,
+          avatar_url: avatarUrl || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
 
-      if (rpcErr) {
-        // Fallback: direct update (funciona si RLS policy está aplicada)
-        const { error: err } = await supabase
-          .from("profiles")
-          .update({
-            first_name: firstName || null,
-            last_name: lastName || null,
-            phone: phone || null,
-          })
-          .eq("id", user.id);
-
-        if (err) {
-          setError("No se pudo actualizar el perfil. Contacta al administrador.");
-          setSaving(false);
-          return;
-        }
+      if (err) {
+        setError("No se pudo actualizar el perfil. Contacta al administrador.");
+        setSaving(false);
+        return;
       }
       setSaved(true);
+      await refreshTenant();
+      setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       setError(err.message || "Error guardando");
     }
@@ -68,6 +65,20 @@ export default function ParentProfilePage() {
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         {saved && <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">✓ Perfil actualizado</div>}
+
+        <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+          <UserAvatar
+            src={avatarUrl}
+            name={`${firstName} ${lastName}`}
+            size="lg"
+            fallbackGradient="from-emerald-500 to-teal-600"
+          />
+          <AvatarUpload
+            value={avatarUrl}
+            onChange={(val) => setAvatarUrl(val || "")}
+            label="Foto tamaño carnet"
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

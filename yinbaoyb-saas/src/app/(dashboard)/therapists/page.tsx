@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 interface TherapistData {
   id: string;
@@ -56,6 +58,7 @@ export default function TherapistsPage() {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
+    avatar_url: "",
     phone: "",
     email: "",
     password: "",
@@ -219,6 +222,7 @@ export default function TherapistsPage() {
           phone: form.phone || undefined,
           role: form.role || "terapeuta",
           tenant_id: profile?.tenant_id || (await getTenantId()),
+          avatar_url: form.avatar_url || undefined,
           specialty: form.specialty || undefined,
           license_number: form.license_number || undefined,
           therapeutic_approach: form.therapeutic_approach.length > 0 ? form.therapeutic_approach : undefined,
@@ -234,7 +238,7 @@ export default function TherapistsPage() {
       }
 
       setShowAddForm(false);
-      setForm({ first_name: "", last_name: "", phone: "", email: "", password: "", role: "terapeuta", specialty: "", license_number: "", therapeutic_approach: [], max_patients: 20 });
+      setForm({ first_name: "", last_name: "", avatar_url: "", phone: "", email: "", password: "", role: "terapeuta", specialty: "", license_number: "", therapeutic_approach: [], max_patients: 20 });
       loadTherapists();
     } catch (err: any) {
       setError(err.message);
@@ -300,10 +304,10 @@ export default function TherapistsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Terapeutas</h1>
-          <p className="text-sm text-gray-500 mt-1">{activeCount} activo{activeCount !== 1 ? "s" : ""} · {inactiveCount} inactivo{inactiveCount !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Equipo Terapéutico</h1>
+          <p className="text-sm text-gray-500 mt-1">Gestión de profesionales y asignación de pacientes</p>
         </div>
-        <button onClick={() => setShowAddForm(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 inline-flex items-center gap-2">
+        <button onClick={() => { setError(null); setShowAddForm(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors inline-flex items-center gap-2">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Nuevo Terapeuta
         </button>
@@ -326,6 +330,13 @@ export default function TherapistsPage() {
           </div>
           {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
           <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <AvatarUpload
+                value={form.avatar_url}
+                onChange={(val) => setForm({ ...form, avatar_url: val || "" })}
+                label="Foto del Profesional (Tamaño Carnet)"
+              />
+            </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label><input required value={form.first_name} onChange={e => setForm({...form, first_name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Ana" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellidos *</label><input required value={form.last_name} onChange={e => setForm({...form, last_name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="García López" /></div>
             <div>
@@ -519,11 +530,12 @@ export default function TherapistsPage() {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm ${
-                    t.active ? "bg-gradient-to-br from-indigo-500 to-purple-600" : "bg-gray-400"
-                  }`}>
-                    {initials}
-                  </div>
+                  <UserAvatar
+                    src={p?.avatar_url}
+                    name={name}
+                    size="md"
+                    fallbackGradient={t.active ? "from-indigo-500 to-purple-600" : "from-gray-400 to-gray-500"}
+                  />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { useRouter } from "next/navigation";
 import { ROLE_LABELS } from "@/lib/constants";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 interface TherapistOption {
   id: string;
@@ -24,6 +25,7 @@ export default function NewPatientPage() {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
+    avatar_url: "",
     document_number: "",
     birth_date: "",
     gender: "",
@@ -97,12 +99,18 @@ export default function NewPatientPage() {
       return;
     }
 
+    const areaLabel = form.specialty_area === "terapia_fisica" ? "[Terapia Física / Rehabilitación]" : "[Terapia Integral]";
+    const finalReason = form.reason_for_consultation 
+      ? `${areaLabel} ${form.reason_for_consultation}`
+      : areaLabel;
+
     const { data: newPat, error: insertError } = await supabase
       .from("patients")
       .insert({
         tenant_id: tenantId,
         first_name: form.first_name,
         last_name: form.last_name,
+        emergency_contact: form.avatar_url || null,
         document_number: form.document_number || null,
         birth_date: form.birth_date || null,
         gender: form.gender || null,
@@ -113,7 +121,7 @@ export default function NewPatientPage() {
         emergency_contact_name: form.emergency_contact_name || null,
         emergency_contact_relation: form.emergency_contact_relation || null,
         emergency_contact_phone: form.emergency_contact_phone || null,
-        reason_for_consultation: form.reason_for_consultation || null,
+        reason_for_consultation: finalReason,
         primary_diagnosis: form.primary_diagnosis || null,
         primary_diagnosis_desc: form.primary_diagnosis_desc || null,
         current_medication: form.current_medication || null,
@@ -138,19 +146,15 @@ export default function NewPatientPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       {/* Header */}
-      <div className="bg-white border-b px-4 sm:px-6 lg:px-8 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/patients" className="text-gray-400 hover:text-gray-600">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </a>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Nuevo Paciente</h1>
-              <p className="text-xs text-gray-500">Registro de datos personales y asignación de especialidad</p>
-            </div>
-          </div>
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 font-medium mb-1"
+          >
+            ← Volver a pacientes
+          </button>
+          <h1 className="text-xl font-bold text-gray-900 font-outfit">Nuevo Paciente</h1>
         </div>
       </div>
 
@@ -203,8 +207,15 @@ export default function NewPatientPage() {
           </div>
 
           {/* Datos personales */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Datos Personales</h2>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5">
+            <h2 className="text-lg font-semibold text-gray-900">Datos Personales</h2>
+
+            <AvatarUpload
+              value={form.avatar_url}
+              onChange={(val) => setForm({ ...form, avatar_url: val || "" })}
+              label="Foto del Paciente (Tamaño Carnet)"
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

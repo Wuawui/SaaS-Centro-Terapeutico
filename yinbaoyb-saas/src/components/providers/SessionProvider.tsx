@@ -242,7 +242,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     signOut,
     refreshTenant,
     isAdmin: role === "super_admin" || role === "director" || role === "admin",
-    isTherapist: role === "terapeuta",
+    isTherapist: role === "terapeuta" || (role as string) === "fisioterapeuta",
     isParent: role === "padre",
     isCoordinator: role === "coordinador",
   };

@@ -40,18 +40,27 @@ export async function GET(request: Request) {
     const fetchHeaders = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
 
     // 1. Obtener todos los perfiles del tenant actual
-    const allProfilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?tenant_id=eq.${userProfile.tenant_id}&select=id,first_name,last_name,phone,role,active,tenant_id&order=role.asc`, {
+    const allProfilesRes = await fetch(`${supabaseUrl}/rest/v1/profiles?tenant_id=eq.${userProfile.tenant_id}&select=id,first_name,last_name,phone,role,active,avatar_url,tenant_id&order=role.asc`, {
       headers: fetchHeaders,
     });
     const allProfiles = (await allProfilesRes.json()) || [];
 
-    // 2. Obtener todos los pacientes registrados de la tabla patients
-    const allPatientsRes = await fetch(`${supabaseUrl}/rest/v1/patients?tenant_id=eq.${userProfile.tenant_id}&select=id,first_name,last_name,phone,email,active&order=created_at.desc`, {
+    // 2. Obtener terapeutas para saber la especialidad
+    const allTherapistsRes = await fetch(`${supabaseUrl}/rest/v1/therapists?select=id,specialty,active`, {
+      headers: fetchHeaders,
+    });
+    const allTherapists = (await allTherapistsRes.json()) || [];
+    const therapistMap = new Map<string, string>(
+      (Array.isArray(allTherapists) ? allTherapists : []).map((t: any) => [t.id, t.specialty || ""])
+    );
+
+    // 3. Obtener todos los pacientes registrados de la tabla patients (avatar guardado en emergency_contact)
+    const allPatientsRes = await fetch(`${supabaseUrl}/rest/v1/patients?tenant_id=eq.${userProfile.tenant_id}&select=id,first_name,last_name,phone,email,active,emergency_contact&order=created_at.desc`, {
       headers: fetchHeaders,
     });
     const allPatients = (await allPatientsRes.json()) || [];
 
-    // 3. Obtener usuarios de Auth
+    // 4. Obtener usuarios de Auth
     const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
       headers: fetchHeaders,
     });
@@ -59,17 +68,26 @@ export async function GET(request: Request) {
     const authUsers = authData.users || [];
 
     // Mapear perfiles
-    const combinedProfiles = allProfiles.map((p: any) => {
+    const combinedProfiles = (Array.isArray(allProfiles) ? allProfiles : []).map((p: any) => {
       const u = authUsers.find((user: any) => user.id === p.id);
+      const specialty = therapistMap.get(p.id) || "";
+      const isPhysio = p.role === "terapeuta" && (
+        specialty.toLowerCase().includes("fisio") || 
+        specialty.toLowerCase().includes("fisica") || 
+        specialty.toLowerCase().includes("física") ||
+        specialty.toLowerCase().includes("rehabilitacion")
+      );
+
       return {
         ...p,
+        role: isPhysio ? "fisioterapeuta" : p.role,
         email: u ? u.email : null,
       };
     });
 
     // Mapear pacientes registrados que no tengan perfil aún para reflejarlos bajo "Niños (Pacientes de Terapias)"
     const existingIds = new Set(combinedProfiles.map((p: any) => p.id));
-    const patientUsers = allPatients
+    const patientUsers = (Array.isArray(allPatients) ? allPatients : [])
       .filter((pat: any) => !existingIds.has(pat.id))
       .map((pat: any) => ({
         id: pat.id,
@@ -77,6 +95,7 @@ export async function GET(request: Request) {
         last_name: pat.last_name,
         phone: pat.phone || null,
         email: pat.email || "Registro Ficha Clínica",
+        avatar_url: pat.emergency_contact || null,
         role: "paciente",
         active: pat.active !== false,
       }));

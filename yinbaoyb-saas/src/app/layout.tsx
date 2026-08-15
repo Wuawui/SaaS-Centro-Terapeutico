@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: "SaaSYB Centro Terapéuticos",
   description:
     "Plataforma SaaS de élite para digitalizar y optimizar la operación completa de centros terapéuticos",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CentroYB",
+  },
 };
 
 export default function RootLayout({

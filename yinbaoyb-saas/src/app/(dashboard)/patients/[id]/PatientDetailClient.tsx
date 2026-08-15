@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import ParentLinking from "@/components/clinical/ParentLinking";
 import AIEvolutionView from "@/features/clinical/components/AIEvolutionView";
 import ClinicalNoteCard from "@/components/clinical/ClinicalNoteCard";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 interface TherapistProfile { id: string; first_name: string; last_name: string }
 interface Therapist { id: string; profiles: TherapistProfile | null }
@@ -21,6 +23,7 @@ interface Patient {
   emergency_contact_phone: string | null; reason_for_consultation: string | null;
   primary_diagnosis: string | null; primary_diagnosis_desc: string | null; current_medication: string | null;
   medical_history: string | null; insurance_provider: string | null; insurance_policy: string | null;
+  avatar_url?: string | null;
   status: string; active: boolean | null; therapist_id: string | null; secondary_therapist_ids?: string[]; created_at: string;
 }
 
@@ -156,6 +159,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
 
   const [form, setForm] = useState({
     first_name: patient.first_name, last_name: patient.last_name,
+    avatar_url: (patient as any).emergency_contact || patient.avatar_url || "",
     document_number: patient.document_number || "", phone: patient.phone || "",
     email: patient.email || "", reason_for_consultation: patient.reason_for_consultation || "",
     primary_diagnosis: patient.primary_diagnosis || "", primary_diagnosis_desc: patient.primary_diagnosis_desc || "",
@@ -196,6 +200,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
     setSaving(true); setError(null);
     const { error: err } = await supabase.from("patients").update({
       first_name: form.first_name, last_name: form.last_name,
+      emergency_contact: form.avatar_url || null,
       document_number: form.document_number || null, phone: form.phone || null,
       email: form.email || null, reason_for_consultation: form.reason_for_consultation || null,
       primary_diagnosis: form.primary_diagnosis || null, primary_diagnosis_desc: form.primary_diagnosis_desc || null,
@@ -284,9 +289,12 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
 
           <div className="flex flex-col sm:flex-row sm:items-start gap-5">
             {/* Avatar */}
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
-              {initials}
-            </div>
+            <UserAvatar
+              src={(patient as any).emergency_contact || patient.avatar_url}
+              name={`${patient.first_name} ${patient.last_name}`}
+              size="xl"
+              fallbackGradient="from-indigo-500 to-purple-600"
+            />
 
             {/* Main info */}
             <div className="flex-1 min-w-0">
@@ -501,8 +509,13 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
               {editing ? (
                 <div className="space-y-6">
                   {/* Sección 1: Datos Personales */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-1 border-b border-gray-100">Datos Personales</h3>
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-900 pb-1 border-b border-gray-100">Datos Personales</h3>
+                    <AvatarUpload
+                      value={form.avatar_url}
+                      onChange={(val) => setForm(prev => ({ ...prev, avatar_url: val || "" }))}
+                      label="Actualizar Foto Carnet del Paciente"
+                    />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label><input name="first_name" required value={form.first_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                       <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellidos *</label><input name="last_name" required value={form.last_name} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>

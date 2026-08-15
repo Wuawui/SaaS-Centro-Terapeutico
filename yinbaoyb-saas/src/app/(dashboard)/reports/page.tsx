@@ -98,7 +98,7 @@ export default function ReportsPage() {
       const { count: totalAlerts } = await alertsQuery;
 
       // Therapists
-      const { count: totalTherapists } = await supabase.from("therapists").select("id", { count: "exact", head: true }).eq("tenant_id", tid).eq("active", true);
+      const { count: totalTherapists } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("tenant_id", tid).in("role", ["terapeuta", "fisioterapeuta"]).eq("active", true);
 
       setData({
         totalPatients: patientsRes.count || 0,

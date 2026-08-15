@@ -6,6 +6,8 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { ROLE_LABELS, ROLE_COLORS } from "@/lib/constants";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 interface UserData {
   id: string;
@@ -14,6 +16,7 @@ interface UserData {
   email: string | null;
   phone: string | null;
   role: string;
+  avatar_url?: string | null;
   active: boolean;
 }
 
@@ -41,6 +44,7 @@ export default function UsersPage() {
     password: "",
     phone: "",
     role: "padre",
+    avatar_url: "",
   });
 
   const [editForm, setEditForm] = useState({
@@ -49,6 +53,7 @@ export default function UsersPage() {
     password: "",
     phone: "",
     role: "padre",
+    avatar_url: "",
     active: true,
   });
 
@@ -59,6 +64,7 @@ export default function UsersPage() {
       password: "", // Contraseña siempre en blanco para no sobreescribirla por accidente
       phone: u.phone || "",
       role: u.role || "padre",
+      avatar_url: u.avatar_url || "",
       active: u.active !== false,
     });
     setEditingUser(u);
@@ -121,7 +127,7 @@ export default function UsersPage() {
       if (!res.ok) { setError(result.error || "Error creando usuario"); setSaving(false); return; }
 
       setShowAddForm(false);
-      setForm({ first_name: "", last_name: "", email: "", password: "", phone: "", role: "padre" });
+      setForm({ first_name: "", last_name: "", email: "", password: "", phone: "", role: "padre", avatar_url: "" });
       loadUsers();
       toast.addToast("Usuario creado con éxito", "success");
     } catch (err: any) {
@@ -150,6 +156,7 @@ export default function UsersPage() {
           phone: editForm.phone,
           role: editForm.role,
           active: editForm.active,
+          avatar_url: editForm.avatar_url || null,
           password: editForm.password, // Only processed if not empty
         }),
       });
@@ -225,6 +232,13 @@ export default function UsersPage() {
             <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
           </div>
           <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <AvatarUpload
+                value={form.avatar_url}
+                onChange={(val) => setForm({ ...form, avatar_url: val || "" })}
+                label="Foto tamaño carnet (Opcional)"
+              />
+            </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input value={form.first_name} onChange={e => setForm({...form, first_name: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label><input value={form.last_name} onChange={e => setForm({...form, last_name: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
@@ -289,7 +303,10 @@ export default function UsersPage() {
                 const name = `${u.first_name || ""} ${u.last_name || ""}`;
                 return (
                   <tr key={u.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{name}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 flex items-center gap-3">
+                      <UserAvatar src={u.avatar_url} name={name} size="sm" />
+                      <span>{name}</span>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-500">{u.email || "—"}</td>
                     <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleColors[u.role] || "bg-gray-50 text-gray-600"}`}>{roleLabels[u.role] || u.role}</span></td>
                     <td className="px-4 py-3 text-sm text-gray-500">{u.phone || "—"}</td>
@@ -341,9 +358,11 @@ export default function UsersPage() {
             
             <div className="p-6 space-y-5">
               <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
-                <div className="h-14 w-14 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xl ring-4 ring-indigo-50">
-                  {selectedUser.first_name?.[0] || ""}{selectedUser.last_name?.[0] || ""}
-                </div>
+                <UserAvatar
+                  src={selectedUser.avatar_url}
+                  name={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                  size="xl"
+                />
                 <div>
                   <h4 className="text-lg font-bold text-gray-900">{selectedUser.first_name} {selectedUser.last_name}</h4>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${roleColors[selectedUser.role] || "bg-gray-100 text-gray-700"}`}>
@@ -400,6 +419,13 @@ export default function UsersPage() {
             
             <form onSubmit={handleUpdate}>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <AvatarUpload
+                    value={editForm.avatar_url}
+                    onChange={(val) => setEditForm({ ...editForm, avatar_url: val || "" })}
+                    label="Actualizar foto tamaño carnet"
+                  />
+                </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input value={editForm.first_name} onChange={e => setEditForm({...editForm, first_name: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label><input value={editForm.last_name} onChange={e => setEditForm({...editForm, last_name: e.target.value})} required className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label><input value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>

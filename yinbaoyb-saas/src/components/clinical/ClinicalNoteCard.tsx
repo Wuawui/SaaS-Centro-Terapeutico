@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import FormattedNoteContent from "./FormattedNoteContent";
+import { logAuditEvent } from "@/lib/audit";
 
 interface ClinicalNoteCardProps {
   id: string;
@@ -155,6 +156,12 @@ export default function ClinicalNoteCard({
     if (err) {
       alert("Error al solicitar edición: " + err.message);
     } else {
+      await logAuditEvent({
+        action: "request_edit",
+        entity: "clinical_note",
+        entityId: id,
+        details: { reason: requestReason.trim(), patient: patientName, therapist: therapistName }
+      });
       setShowRequestModal(false);
       window.location.reload();
     }
@@ -180,6 +187,12 @@ export default function ClinicalNoteCard({
     if (err) {
       alert("Error al autorizar la edición: " + err.message);
     } else {
+      await logAuditEvent({
+        action: "authorize_edit",
+        entity: "clinical_note",
+        entityId: id,
+        details: { patient: patientName, therapist: therapistName, reason: editReason }
+      });
       window.location.reload();
     }
   };
@@ -233,6 +246,12 @@ export default function ClinicalNoteCard({
     if (err) {
       alert("Error al guardar los cambios: " + err.message);
     } else {
+      await logAuditEvent({
+        action: "update",
+        entity: "clinical_note",
+        entityId: id,
+        details: { patient: patientName, therapist: therapistName }
+      });
       setShowEditModal(false);
       window.location.reload();
     }

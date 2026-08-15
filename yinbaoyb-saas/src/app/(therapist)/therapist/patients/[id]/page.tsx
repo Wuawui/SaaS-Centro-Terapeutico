@@ -263,14 +263,12 @@ export default function TherapistPatientDetailPage() {
       if (!pData) { setLoading(false); return; }
       setPatient(pData as Patient);
 
-      const [aptRes, notesRes, scalesRes] = await Promise.all([
+      const [aptRes, notesRes] = await Promise.all([
         supabase.from("appointments").select("id, date, start_time, end_time, type, status, notes").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).eq("therapist_id", user.id).order("date", { ascending: false }).limit(20),
         supabase.from("clinical_notes").select("id, format, content, signed, created_at, profiles!clinical_notes_therapist_id_fkey(first_name, last_name)").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).eq("therapist_id", user.id).order("created_at", { ascending: false }).limit(20),
-        supabase.from("scale_results").select("id, scale_type, total_score, risk_alert, applied_at").eq("tenant_id", profile.tenant_id).eq("patient_id", patientId).order("applied_at", { ascending: false }).limit(10),
       ]);
       setAppointments((aptRes.data || []) as Appointment[]);
       setNotes((notesRes.data || []) as ClinicalNote[]);
-      setScales((scalesRes.data || []) as ScaleResult[]);
       setLoading(false);
     }
     load();

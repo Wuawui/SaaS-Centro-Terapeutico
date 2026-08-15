@@ -14,6 +14,8 @@ import {
   type ColorScheme,
 } from "@/lib/constants";
 
+import { UserAvatar } from "@/components/ui/UserAvatar";
+
 // ============================================================
 // Sidebar Unificado — Reemplaza Sidebar.tsx + TherapistSidebar.tsx
 // + inline sidebar de ParentLayout
@@ -151,9 +153,12 @@ export function Sidebar({
       {/* User profile */}
       <div className="p-4 relative z-10">
         <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/70 shadow-sm border border-slate-100 hover:bg-white transition-colors">
-          <div className="h-10 w-10 rounded-[12px] bg-gradient-to-br from-emerald-100 to-teal-50 flex items-center justify-center text-teal-700 text-sm font-bold border border-teal-100/50">
-            {initials}
-          </div>
+          <UserAvatar
+            src={profile?.avatar_url}
+            name={displayName}
+            size="sm"
+            fallbackGradient="from-teal-500 to-emerald-600"
+          />
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-bold text-slate-800 truncate">{displayName}</p>
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{roleLabel}</p>

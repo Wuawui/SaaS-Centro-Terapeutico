@@ -5,12 +5,14 @@
 import Link from "next/link";
 import { PATIENT_STATUS_CONFIG } from "@/lib/constants";
 import { motion } from "framer-motion";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 interface PatientCardProps {
   patient: {
     id: string;
     first_name: string;
     last_name: string;
+    avatar_url?: string | null;
     status: string;
     reason_for_consultation?: string | null;
     date_of_birth?: string | null;
@@ -47,9 +49,12 @@ export function PatientCard({
         href={href}
         className="flex items-center gap-4 bg-white rounded-2xl border border-slate-200/60 p-4 shadow-sm hover:shadow-md transition-all"
       >
-      <div className={`h-12 w-12 rounded-full ${accentColor} flex items-center justify-center font-semibold flex-shrink-0`}>
-        {p.first_name[0]}{p.last_name[0]}
-      </div>
+      <UserAvatar
+        src={p.avatar_url}
+        name={`${p.first_name} ${p.last_name}`}
+        size="md"
+        fallbackGradient="from-teal-500 to-emerald-600"
+      />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-900">{p.first_name} {p.last_name}</p>
         {showReason && p.reason_for_consultation && (

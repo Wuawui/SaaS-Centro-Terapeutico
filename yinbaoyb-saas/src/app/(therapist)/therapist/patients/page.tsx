@@ -43,7 +43,11 @@ export default function TherapistPatientsPage() {
     if (filter !== "all") query = query.eq("status", filter);
 
     const { data } = await query;
-    setPatients((data || []) as Patient[]);
+    const mapped = (data || []).map((p: any) => ({
+      ...p,
+      avatar_url: p.emergency_contact || null,
+    }));
+    setPatients(mapped as Patient[]);
     setLoading(false);
   }, [filter, tenantId, user?.id]);
 

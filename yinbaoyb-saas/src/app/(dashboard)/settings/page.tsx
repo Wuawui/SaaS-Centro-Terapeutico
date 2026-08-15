@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useSession } from "@/components/providers/SessionProvider";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { Save, Palette, Building2, Shield, User, Lock, Eye, EyeOff } from "lucide-react";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 
 interface TenantData {
   id: string;
@@ -42,7 +43,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"center" | "profile" | "password" | "security">("center");
 
   const [tenantForm, setTenantForm] = useState({ name: "", slug: "", primary_color: "#4F46E5" });
-  const [profileForm, setProfileForm] = useState({ first_name: "", last_name: "", phone: "" });
+  const [profileForm, setProfileForm] = useState({ first_name: "", last_name: "", phone: "", avatar_url: "" });
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -61,6 +62,7 @@ export default function SettingsPage() {
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
           phone: profile.phone || "",
+          avatar_url: profile.avatar_url || "",
         });
       }
 
@@ -117,9 +119,17 @@ export default function SettingsPage() {
     setProfileSaving(true); setError(null); setSuccess(null);
     if (!user) { setProfileSaving(false); return; }
     const { error: err } = await supabase.from("profiles").update({
-      first_name: profileForm.first_name, last_name: profileForm.last_name, phone: profileForm.phone, updated_at: new Date().toISOString(),
+      first_name: profileForm.first_name,
+      last_name: profileForm.last_name,
+      phone: profileForm.phone,
+      avatar_url: profileForm.avatar_url || null,
+      updated_at: new Date().toISOString(),
     }).eq("id", user.id);
-    if (err) { setError(err.message); } else { setSuccess("Perfil actualizado"); setTimeout(() => setSuccess(null), 3000); }
+    if (err) { setError(err.message); } else {
+      setSuccess("Perfil actualizado");
+      await refreshTenant();
+      setTimeout(() => setSuccess(null), 3000);
+    }
     setProfileSaving(false);
   }
 
@@ -139,48 +149,41 @@ export default function SettingsPage() {
 
   const isAdmin = isAdminRole;
   const currentPlan = planLabels[tenant?.plan || "basico"];
+  const tabs = [
+    { key: "center", label: "Centro", icon: Building2 },
+    { key: "profile", label: "Mi Perfil", icon: User },
+    { key: "password", label: "Contraseña", icon: Lock },
+    { key: "security", label: "Seguridad", icon: Shield },
+  ];
 
   if (loading) return <PageLoading text="Cargando configuración..." />;
-
-  const tabs = [
-    { id: "center" as const, label: "Centro", icon: Building2 },
-    { id: "profile" as const, label: "Mi Perfil", icon: User },
-    { id: "password" as const, label: "Contraseña", icon: Lock },
-    { id: "security" as const, label: "Seguridad", icon: Shield },
-  ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-sm text-gray-500 mt-1">Administra tu cuenta y centro terapéutico</p>
+        <p className="text-sm text-gray-500 mt-1">Administra la configuración del centro y tu cuenta</p>
       </div>
 
       {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex justify-between">{error}<button onClick={() => setError(null)} className="text-red-500 underline">Cerrar</button></div>}
       {success && <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{success}</div>}
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <tab.icon className="h-4 w-4" /> {tab.label}
-          </button>
-        ))}
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-none">
+          {tabs.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.key ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Tab: Centro */}
       {activeTab === "center" && (
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="flex items-center gap-3 mb-5">
               <Building2 className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Centro Terapéutico</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Información del Centro</h2>
             </div>
             {tenant ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,10 +231,6 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
-              <div className="mt-4 flex items-center gap-3">
-                <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: tenantForm.primary_color }}>YB</div>
-                <p className="text-sm text-gray-500">Así se verá el color principal</p>
-              </div>
             </div>
           )}
 
@@ -248,43 +247,48 @@ export default function SettingsPage() {
                     <div key={i} className="flex items-center gap-2 text-sm text-gray-600"><span className="text-green-500">✓</span> {f}</div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-4">Para cambiar de plan, contacta a YinbaoYB</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Tab: Perfil */}
       {activeTab === "profile" && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-5">
             <User className="h-5 w-5 text-indigo-600" />
             <h2 className="text-lg font-semibold text-gray-900">Mi Perfil</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-              <input type="text" value={profileForm.first_name} onChange={e => setProfileForm({...profileForm, first_name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
-              <input type="text" value={profileForm.last_name} onChange={e => setProfileForm({...profileForm, last_name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-              <input type="tel" value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-              <input type="text" value={profile?.role || ""} disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500" />
+          <div className="space-y-5">
+            <AvatarUpload
+              value={profileForm.avatar_url}
+              onChange={(val) => setProfileForm({ ...profileForm, avatar_url: val || "" })}
+              label="Foto de Perfil Tamaño Carnet"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" value={profileForm.first_name} onChange={e => setProfileForm({...profileForm, first_name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                <input type="text" value={profileForm.last_name} onChange={e => setProfileForm({...profileForm, last_name: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <input type="tel" value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                <input type="text" value={profile?.role || ""} disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500" />
+              </div>
             </div>
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-5 flex justify-end">
             <button onClick={handleSaveProfile} disabled={profileSaving} className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 inline-flex items-center gap-2">
               <Save className="h-4 w-4" /> {profileSaving ? "Guardando..." : "Guardar perfil"}
             </button>
@@ -292,7 +296,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tab: Contraseña */}
       {activeTab === "password" && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-5">
