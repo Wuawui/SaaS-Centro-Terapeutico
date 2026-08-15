@@ -20,11 +20,21 @@ interface Patient {
   active: boolean;
 }
 
+// Memoria caché SWR para pacientes del terapeuta (0ms)
+let _thPatientsCache: { data: Patient[]; userId: string; timestamp: number } | null = null;
+
 export default function TherapistPatientsPage() {
   const supabase = createClient();
   const { user, tenantId } = useSession();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<Patient[]>(() => {
+    if (_thPatientsCache && (!user || _thPatientsCache.userId === user.id)) {
+      return _thPatientsCache.data;
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !(_thPatientsCache && (!user || _thPatientsCache.userId === user.id));
+  });
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
 
@@ -33,9 +43,11 @@ export default function TherapistPatientsPage() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!patients || patients.length === 0) {
+      setLoading(true);
+    }
 
-    let query = supabase.from("patients").select("*")
+    let query = supabase.from("patients").select("id, first_name, last_name, document_number, phone, status, reason_for_consultation, active, emergency_contact, birth_date")
       .eq("tenant_id", tenantId)
       .or(`therapist_id.eq.${user.id},secondary_therapist_ids.cs.{"${user.id}"}`)
       .eq("active", true)
@@ -48,8 +60,9 @@ export default function TherapistPatientsPage() {
       avatar_url: p.emergency_contact || null,
     }));
     setPatients(mapped as Patient[]);
+    _thPatientsCache = { data: mapped as Patient[], userId: user.id, timestamp: Date.now() };
     setLoading(false);
-  }, [filter, tenantId, user?.id]);
+  }, [filter, tenantId, user?.id, supabase]);
 
   useEffect(() => { loadPatients(); }, [loadPatients]);
 

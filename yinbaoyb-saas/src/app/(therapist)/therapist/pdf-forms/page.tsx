@@ -18,6 +18,7 @@ import {
 import { useSession } from "@/components/providers/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
 import {
   getPdfTemplates,
   getPdfSubmissions,
@@ -25,8 +26,12 @@ import {
   type TherapistPdfTemplate,
   type TherapistPdfSubmission,
 } from "@/lib/pdf-storage";
-import { PdfViewerEditor } from "@/components/pdf/PdfViewerEditor";
 import { generateDefaultSamplePdf } from "@/lib/pdf-editor-utils";
+
+const PdfViewerEditor = dynamic(
+  () => import("@/components/pdf/PdfViewerEditor").then((mod) => mod.PdfViewerEditor),
+  { ssr: false }
+);
 
 export default function TherapistPdfFormsPage() {
   const { user, profile, tenantId } = useSession();

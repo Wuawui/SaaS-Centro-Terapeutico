@@ -90,13 +90,39 @@ const TOUR_STEPS: TourStep[] = [
   }
 ];
 
+// Memoria caché SWR para renderizado instantáneo del Dashboard (0ms)
+let _dashboardCache: {
+  stats: DashboardStats | null;
+  todayApts: any[];
+  recentPatients: any[];
+  tenantId: string;
+  timestamp: number;
+} | null = null;
+
 export default function DashboardPage() {
   const supabase = createClient();
   const { profile, tenantId, isTherapist } = useSession();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [todayApts, setTodayApts] = useState<any[]>([]);
-  const [recentPatients, setRecentPatients] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(() => {
+    if (_dashboardCache && (!tenantId || _dashboardCache.tenantId === tenantId)) {
+      return _dashboardCache.stats;
+    }
+    return null;
+  });
+  const [todayApts, setTodayApts] = useState<any[]>(() => {
+    if (_dashboardCache && (!tenantId || _dashboardCache.tenantId === tenantId)) {
+      return _dashboardCache.todayApts;
+    }
+    return [];
+  });
+  const [recentPatients, setRecentPatients] = useState<any[]>(() => {
+    if (_dashboardCache && (!tenantId || _dashboardCache.tenantId === tenantId)) {
+      return _dashboardCache.recentPatients;
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !(_dashboardCache && (!tenantId || _dashboardCache.tenantId === tenantId));
+  });
   const [showTutorial, setShowTutorial] = useState(false);
   const [showTour, setShowTour] = useState(false);
 
@@ -105,7 +131,9 @@ export default function DashboardPage() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!_dashboardCache) {
+      setLoading(true);
+    }
     try {
       const therapistId = isTherapist ? profile?.id : undefined;
 
@@ -118,15 +146,22 @@ export default function DashboardPage() {
       setStats(statsData);
       setTodayApts(aptsData);
       setRecentPatients(patientsData);
+      _dashboardCache = {
+        stats: statsData,
+        todayApts: aptsData,
+        recentPatients: patientsData,
+        tenantId,
+        timestamp: Date.now(),
+      };
     } catch (err) {
       console.error("Error loading dashboard:", err);
     }
     setLoading(false);
-  }, [tenantId, isTherapist, profile?.id]);
+  }, [tenantId, isTherapist, profile?.id, supabase]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
-  if (loading) return <DashboardSkeleton />;
+  if (loading && !stats) return <DashboardSkeleton />;
 
   const kpis = [
     {

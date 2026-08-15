@@ -22,7 +22,12 @@ import {
   type TherapistPdfTemplate,
   type TherapistPdfSubmission,
 } from "@/lib/pdf-storage";
-import { PdfViewerEditor } from "@/components/pdf/PdfViewerEditor";
+import dynamic from "next/dynamic";
+
+const PdfViewerEditor = dynamic(
+  () => import("@/components/pdf/PdfViewerEditor").then((mod) => mod.PdfViewerEditor),
+  { ssr: false }
+);
 import { generateDefaultSamplePdf } from "@/lib/pdf-editor-utils";
 
 interface PatientPdfFormsTabProps {

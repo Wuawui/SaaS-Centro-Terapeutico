@@ -30,16 +30,26 @@ interface Patient {
 
 const statusConfig = PATIENT_STATUS_CONFIG;
 
+// Memoria caché SWR para carga inmediata (0ms)
+let _patientsCache: { data: Patient[]; tenantId: string; timestamp: number } | null = null;
+
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { tenantId } = useSession();
+  const [patients, setPatients] = useState<Patient[]>(() => {
+    if (_patientsCache && (!tenantId || _patientsCache.tenantId === tenantId)) {
+      return _patientsCache.data;
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !(_patientsCache && (!tenantId || _patientsCache.tenantId === tenantId));
+  });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | "terapia_fisica" | "terapia_integral">("all");
   const [showInactive, setShowInactive] = useState(false);
   const toast = useToast();
   const supabase = createClient();
-  const { tenantId } = useSession();
 
   useEffect(() => {
     fetchPatients();
@@ -50,7 +60,9 @@ export default function PatientsPage() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!patients || patients.length === 0) {
+      setLoading(true);
+    }
     setErrorMsg(null);
     try {
       const [patRes, profRes, thRes] = await Promise.all([
@@ -87,6 +99,7 @@ export default function PatientsPage() {
           };
         });
         setPatients(enriched);
+        _patientsCache = { data: enriched, tenantId, timestamp: Date.now() };
       }
     } catch (err: any) {
       console.error("Error fetching patients:", err);

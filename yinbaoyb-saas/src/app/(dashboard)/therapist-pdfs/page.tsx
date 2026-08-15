@@ -28,6 +28,7 @@ import {
 import { useSession } from "@/components/providers/SessionProvider";
 import { useToast } from "@/components/ui/Toast";
 import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
 import {
   getPdfTemplates,
   getPdfSubmissions,
@@ -36,10 +37,21 @@ import {
   type TherapistPdfTemplate,
   type TherapistPdfSubmission,
 } from "@/lib/pdf-storage";
-import { AssignPdfModal } from "@/components/pdf/AssignPdfModal";
-import { SplitPdfModal } from "@/components/pdf/SplitPdfModal";
-import { PdfViewerEditor } from "@/components/pdf/PdfViewerEditor";
 import { generateDefaultSamplePdf } from "@/lib/pdf-editor-utils";
+
+// Carga bajo demanda (Lazy Loading) para acelerar la carga de la página
+const AssignPdfModal = dynamic(
+  () => import("@/components/pdf/AssignPdfModal").then((mod) => mod.AssignPdfModal),
+  { ssr: false }
+);
+const SplitPdfModal = dynamic(
+  () => import("@/components/pdf/SplitPdfModal").then((mod) => mod.SplitPdfModal),
+  { ssr: false }
+);
+const PdfViewerEditor = dynamic(
+  () => import("@/components/pdf/PdfViewerEditor").then((mod) => mod.PdfViewerEditor),
+  { ssr: false }
+);
 
 export default function TherapistPdfsAdminPage() {
   const { profile, tenantId } = useSession();

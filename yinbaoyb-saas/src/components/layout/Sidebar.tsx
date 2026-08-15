@@ -121,6 +121,7 @@ export function Sidebar({
                     <Link
                       key={item.name}
                       href={item.href}
+                      prefetch={true}
                       data-tour={`sidebar-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
