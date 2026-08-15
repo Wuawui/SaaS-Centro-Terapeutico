@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ArrowLeft } from "lucide-react";
 import AIEvolutionView from "@/features/clinical/components/AIEvolutionView";
 import ClinicalNoteCard from "@/components/clinical/ClinicalNoteCard";
+import { PatientPdfFormsTab } from "@/components/clinical/PatientPdfFormsTab";
 
 interface Patient { id: string; first_name: string; last_name: string; date_of_birth: string | null; phone: string | null; email: string | null; status: string; reason_for_consultation: string | null; medical_history: string | null; active: boolean; }
 interface Appointment { id: string; date: string; start_time: string; end_time: string; type: string; status: string; notes: string | null; }
@@ -27,7 +28,7 @@ export default function TherapistPatientDetailPage() {
   const [notes, setNotes] = useState<ClinicalNote[]>([]);
   const [scales, setScales] = useState<ScaleResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"appointments" | "notes" | "scales" | "evaluaciones" | "informes" | "ai_evolution">("notes");
+  const [activeTab, setActiveTab] = useState<"appointments" | "notes" | "scales" | "evaluaciones" | "informes" | "ai_evolution" | "pdf_forms">("notes");
 
   // Form for new note
   const [showNewNote, setShowNewNote] = useState(false);
@@ -353,6 +354,7 @@ export default function TherapistPatientDetailPage() {
             { key: "appointments", label: "Citas", count: appointments.length },
             { key: "notes", label: "Notas Clínicas", count: clinicalNotesList.length },
             { key: "evaluaciones", label: "Subir Evaluaciones", count: evaluationsList.length },
+            { key: "pdf_forms", label: "Formatos PDF", count: "📑" },
             { key: "informes", label: "Subir Informes", count: reportsList.length },
             { key: "ai_evolution", label: "Evolución IA", count: "✨" },
           ].map(tab => (
@@ -710,6 +712,17 @@ export default function TherapistPatientDetailPage() {
 
       {activeTab === "ai_evolution" && (
         <AIEvolutionView patientId={params.id as string} />
+      )}
+
+      {activeTab === "pdf_forms" && patient && (
+        <PatientPdfFormsTab
+          patientId={patient.id}
+          patientName={`${patient.first_name} ${patient.last_name}`}
+          tenantId="00000000-0000-0000-0000-000000000001"
+          therapistId=""
+          therapistName="Terapeuta"
+          therapistRole="terapeuta"
+        />
       )}
       {/* Modal de Previsualización de PDF */}
       {previewUrl && (

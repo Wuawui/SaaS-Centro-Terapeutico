@@ -38,3 +38,6 @@ next-env.d.ts
 .supabase/
 supabase/.temp/
 .vercel
+
+# Almacenamiento dinámico de datos y PDFs
+.data/

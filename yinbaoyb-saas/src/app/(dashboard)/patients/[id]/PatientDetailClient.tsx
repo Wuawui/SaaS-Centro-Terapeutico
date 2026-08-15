@@ -8,6 +8,7 @@ import AIEvolutionView from "@/features/clinical/components/AIEvolutionView";
 import ClinicalNoteCard from "@/components/clinical/ClinicalNoteCard";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
+import { PatientPdfFormsTab } from "@/components/clinical/PatientPdfFormsTab";
 
 interface TherapistProfile { id: string; first_name: string; last_name: string }
 interface Therapist { id: string; profiles: TherapistProfile | null }
@@ -51,7 +52,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<"info" | "escalas" | "notas" | "citas" | "padre" | "evaluaciones" | "informes" | "ai_evolution">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "escalas" | "notas" | "citas" | "padre" | "evaluaciones" | "informes" | "ai_evolution" | "pdf_forms">("info");
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [selectedTherapist, setSelectedTherapist] = useState(patient.therapist_id || "");
   const [selectedSecondaries, setSelectedSecondaries] = useState<string[]>(patient.secondary_therapist_ids || []);
@@ -386,6 +387,7 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
             { key: "info" as const, label: "Datos del Paciente", icon: "📋", count: 0, alert: false },
             { key: "notas" as const, label: "Notas Clínicas", icon: "📝", count: clinicalNotesList.length, alert: unsignedNotes > 0 },
             { key: "evaluaciones" as const, label: "Evaluaciones", icon: "📁", count: evaluationsList.length, alert: false },
+            { key: "pdf_forms" as const, label: "Formatos PDF", icon: "📑", count: 0, alert: false },
             { key: "informes" as const, label: "Informes", icon: "📄", count: reportsList.length, alert: false },
             { key: "ai_evolution" as const, label: "Evolución IA", icon: "✨", count: 0, alert: false },
             { key: "citas" as const, label: "Historial de Citas", icon: "📅", count: appointments.length, alert: false },
@@ -934,6 +936,18 @@ export default function PatientDetailClient({ patient }: { patient: Patient }) {
         {/* EVOLUCIÓN IA TAB */}
         {activeTab === "ai_evolution" && (
           <AIEvolutionView patientId={patient.id} />
+        )}
+
+        {/* FORMATOS PDF TAB */}
+        {activeTab === "pdf_forms" && (
+          <PatientPdfFormsTab
+            patientId={patient.id}
+            patientName={`${patient.first_name} ${patient.last_name}`}
+            tenantId="00000000-0000-0000-0000-000000000001"
+            therapistId=""
+            therapistName="Administrador"
+            therapistRole="admin"
+          />
         )}
       </div>
       {/* Modal de Previsualización de PDF */}

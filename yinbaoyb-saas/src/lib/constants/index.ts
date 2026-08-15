@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Sparkles,
   Activity,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -218,6 +219,7 @@ export const ADMIN_NAV: NavItem[] = [
   // ── CLÍNICA
   { name: "Pacientes", href: "/patients", icon: Users, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
   { name: "Terapeutas", href: "/therapists", icon: UserCog, section: "Clínica", roles: ["super_admin", "director", "coordinador", "admin"] },
+  { name: "PDF Terapeutas", href: "/therapist-pdfs", icon: FileText, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
   // ── ADMINISTRACIÓN
   { name: "Usuarios", href: "/users", icon: UserPlus, section: "Administración", roles: ["super_admin", "director", "coordinador", "admin"] },
   { name: "Reportes", href: "/reports", icon: FileBarChart, section: "Administración", roles: ["super_admin", "director", "coordinador", "admin"] },
@@ -231,6 +233,7 @@ export const THERAPIST_NAV: NavItem[] = [
   { name: "Mi Agenda", href: "/therapist/agenda", icon: CalendarDays, section: "Mi Día" },
   { name: "Pacientes", href: "/therapist/patients", icon: Users, section: "Mis Pacientes" },
   { name: "Notas Clínicas", href: "/therapist/clinical", icon: ClipboardList, section: "Mis Pacientes" },
+  { name: "Formatos PDF", href: "/therapist/pdf-forms", icon: FileText, section: "Mis Pacientes" },
   { name: "Mi Perfil", href: "/therapist/profile", icon: UserCircle, section: "Cuenta" },
 ];
 

@@ -6,6 +6,13 @@ import { useSession } from "@/components/providers/SessionProvider";
 import { useRouter } from "next/navigation";
 import { ROLE_LABELS } from "@/lib/constants";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
+import { FileText, Sparkles, Folder, Check } from "lucide-react";
+import {
+  getPdfTemplates,
+  savePdfSubmission,
+  type TherapistPdfTemplate,
+  type TherapistPdfSubmission,
+} from "@/lib/pdf-storage";
 
 interface TherapistOption {
   id: string;
@@ -17,10 +24,12 @@ interface TherapistOption {
 export default function NewPatientPage() {
   const router = useRouter();
   const supabase = createClient();
-  const { tenantId } = useSession();
+  const { tenantId, user, profile } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [therapists, setTherapists] = useState<TherapistOption[]>([]);
+  const [officialTemplates, setOfficialTemplates] = useState<TherapistPdfTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   const [form, setForm] = useState({
     first_name: "",
@@ -55,8 +64,8 @@ export default function NewPatientPage() {
       alert("Por favor selecciona un archivo en formato PDF.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      alert("El archivo PDF supera el tamaño máximo permitido de 5MB.");
+    if (file.size > 15 * 1024 * 1024) {
+      alert("El archivo PDF supera el tamaño máximo permitido de 15MB.");
       return;
     }
     const reader = new FileReader();
@@ -70,7 +79,8 @@ export default function NewPatientPage() {
 
   useEffect(() => {
     if (!tenantId) return;
-    async function loadTherapists() {
+    async function loadData() {
+      // 1. Cargar terapeutas
       const { data } = await supabase
         .from("profiles")
         .select("id, first_name, last_name, role")
@@ -78,14 +88,56 @@ export default function NewPatientPage() {
         .in("role", ["terapeuta", "fisioterapeuta"])
         .eq("active", true);
       if (data) setTherapists(data as TherapistOption[]);
+
+      // 2. Cargar plantillas oficiales de PDF del centro
+      try {
+        const tpls = await getPdfTemplates(tenantId || undefined);
+        setOfficialTemplates(tpls);
+
+        // Auto-seleccionar por defecto si hay una plantilla de Fisioterapia
+        const physioTpl = tpls.find(
+          (t) =>
+            t.category.toLowerCase().includes("fisio") ||
+            t.title.toLowerCase().includes("fisioterapia") ||
+            t.title.toLowerCase().includes("kinesiol") ||
+            t.title.toLowerCase().includes("rehabilit")
+        );
+        if (physioTpl) {
+          setSelectedTemplateId(physioTpl.id);
+        }
+      } catch (err) {
+        console.error("Error cargando plantillas PDF:", err);
+      }
     }
-    loadTherapists();
+    loadData();
   }, [tenantId, supabase]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+
+    // Si cambia el área de especialidad, sugerir la plantilla adecuada
+    if (name === "specialty_area") {
+      if (value === "terapia_fisica") {
+        const physioTpl = officialTemplates.find(
+          (t) =>
+            t.category.toLowerCase().includes("fisio") ||
+            t.title.toLowerCase().includes("fisioterapia") ||
+            t.title.toLowerCase().includes("kinesiol")
+        );
+        if (physioTpl) setSelectedTemplateId(physioTpl.id);
+      } else {
+        const integralTpl = officialTemplates.find(
+          (t) =>
+            t.category.toLowerCase().includes("evalua") ||
+            t.title.toLowerCase().includes("inicial") ||
+            t.title.toLowerCase().includes("integral")
+        );
+        if (integralTpl) setSelectedTemplateId(integralTpl.id);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,9 +191,63 @@ export default function NewPatientPage() {
       return;
     }
 
+    // Si seleccionó un formato oficial del centro, vincularlo de inmediato a la ficha del paciente
+    if (newPat && selectedTemplateId) {
+      try {
+        const chosenTpl = officialTemplates.find((t) => t.id === selectedTemplateId);
+        if (chosenTpl) {
+          const assignedTherapist = therapists.find((th) => th.id === form.therapist_id);
+          const initialSubmission: TherapistPdfSubmission = {
+            id: "sub_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+            template_id: chosenTpl.id,
+            template_title: chosenTpl.title,
+            tenant_id: tenantId,
+            therapist_id: form.therapist_id || user?.id || "",
+            therapist_name: assignedTherapist
+              ? `${assignedTherapist.first_name} ${assignedTherapist.last_name}`.trim()
+              : profile
+              ? `${profile.first_name} ${profile.last_name}`.trim()
+              : "Por Asignar",
+            therapist_role: assignedTherapist?.role || profile?.role || "fisioterapeuta",
+            patient_id: newPat.id,
+            patient_name: `${form.first_name} ${form.last_name}`.trim(),
+            filled_at: new Date().toISOString(),
+            filled_date_formatted: new Date().toLocaleString("es-ES", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            annotations: [],
+            filled_pdf_data: chosenTpl.pdf_data || "",
+            status: "borrador",
+            notes: "Formato oficial asignado al crear la ficha del paciente.",
+          };
+          await savePdfSubmission(initialSubmission);
+        }
+      } catch (pdfErr) {
+        console.error("Error al vincular formato PDF oficial:", pdfErr);
+      }
+    }
+
     router.push("/patients");
     router.refresh();
   };
+
+  // Filtrar plantillas sugeridas según el área
+  const relevantTemplates = officialTemplates.filter((t) => {
+    if (form.specialty_area === "terapia_fisica") {
+      return (
+        t.category.toLowerCase().includes("fisio") ||
+        t.category.toLowerCase().includes("evalua") ||
+        t.category.toLowerCase().includes("consent") ||
+        t.category.toLowerCase().includes("seguim") ||
+        (t.assigned_specialties || []).some((s) => s.toLowerCase().includes("fisio"))
+      );
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -167,11 +273,19 @@ export default function NewPatientPage() {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Asignación de Servicio & Profesional */}
-          <div className="bg-gradient-to-r from-teal-900 to-slate-900 text-white rounded-2xl p-6 shadow-md">
-            <h2 className="text-base font-bold mb-1 font-outfit flex items-center gap-2">
-              🏃 Asignación de Especialidad & Terapeuta
-            </h2>
-            <p className="text-xs text-teal-200/80 mb-4">Selecciona el área de atención y el profesional a cargo</p>
+          <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-7 shadow-lg space-y-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-bold mb-2">
+                <Sparkles size={13} />
+                Asignación Clínica & Formatos Oficiales
+              </div>
+              <h2 className="text-base sm:text-lg font-bold font-outfit">
+                Especialidad, Terapeuta & Formato PDF Oficial
+              </h2>
+              <p className="text-xs text-teal-200/80">
+                Selecciona el servicio terapéutico, el profesional responsable y el documento PDF del centro que utilizará el terapeuta.
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -180,7 +294,7 @@ export default function NewPatientPage() {
                   name="specialty_area"
                   value={form.specialty_area}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
+                  className="w-full px-3 py-2.5 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
                 >
                   <option value="terapia_fisica">🏃 Terapia Física / Rehabilitación</option>
                   <option value="terapia_integral">🧩 Terapia Integral / Atención Temprana</option>
@@ -193,10 +307,10 @@ export default function NewPatientPage() {
                   name="therapist_id"
                   value={form.therapist_id}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
+                  className="w-full px-3 py-2.5 border border-teal-700/50 rounded-xl text-xs bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
                 >
                   <option value="">Sin terapeuta asignado por el momento...</option>
-                  {therapists.map(t => (
+                  {therapists.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.first_name} {t.last_name} ({ROLE_LABELS[t.role] || t.role})
                     </option>
@@ -204,11 +318,41 @@ export default function NewPatientPage() {
                 </select>
               </div>
             </div>
+
+            {/* Selector de Documento / Formato PDF Oficial del Centro */}
+            <div className="p-4 bg-slate-800/90 rounded-2xl border border-teal-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-teal-100 flex items-center gap-1.5 font-outfit">
+                  <FileText size={14} className="text-teal-400" />
+                  Documento / Formato PDF Oficial del Centro para este Paciente
+                </label>
+                <span className="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full font-bold uppercase">
+                  {form.specialty_area === "terapia_fisica" ? "Terapia Física" : "Integral"}
+                </span>
+              </div>
+
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full px-3 py-2.5 border border-teal-600/50 rounded-xl text-xs bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 font-medium"
+              >
+                <option value="">-- Sin formato PDF asignado al inicio (Asignar más tarde) --</option>
+                {relevantTemplates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    📄 {tpl.title} • [{tpl.category}] {tpl.page_range ? `(${tpl.page_range})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <p className="text-[11px] text-teal-200/70">
+                Al crear el paciente, este documento oficial quedará listo en la pestaña <strong>"Formatos PDF"</strong> para que el terapeuta asignado pueda escribir y firmar sobre él.
+              </p>
+            </div>
           </div>
 
           {/* Datos personales */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-5">
-            <h2 className="text-lg font-semibold text-gray-900">Datos Personales</h2>
+            <h2 className="text-lg font-semibold text-gray-900 font-outfit">Datos Personales</h2>
 
             <AvatarUpload
               value={form.avatar_url}
@@ -242,7 +386,7 @@ export default function NewPatientPage() {
                   value={form.last_name}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="García López"
+                  placeholder="González"
                 />
               </div>
               <div>
@@ -253,11 +397,11 @@ export default function NewPatientPage() {
                   value={form.document_number}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="1234567890"
+                  placeholder="1720000000"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
                 <input
                   name="birth_date"
                   type="date"
@@ -275,10 +419,9 @@ export default function NewPatientPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   <option value="">Seleccionar...</option>
-                  <option value="M">Masculino</option>
-                  <option value="F">Femenino</option>
-                  <option value="O">Otro</option>
-                  <option value="X">Prefiere no decir</option>
+                  <option value="femenino">Femenino</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="otro">Otro</option>
                 </select>
               </div>
               <div>
@@ -292,7 +435,7 @@ export default function NewPatientPage() {
                   placeholder="+593 99 999 9999"
                 />
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
                   name="email"
@@ -300,7 +443,7 @@ export default function NewPatientPage() {
                   value={form.email}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="maria@ejemplo.com"
+                  placeholder="paciente@ejemplo.com"
                 />
               </div>
               <div className="md:col-span-2">
@@ -311,15 +454,15 @@ export default function NewPatientPage() {
                   value={form.address}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Av. 9 de Octubre, Guayaquil"
+                  placeholder="Av. Principal 123 y Secundaria"
                 />
               </div>
             </div>
           </div>
 
-          {/* Contacto de emergencia */}
+          {/* Contacto de Emergencia */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Contacto de Emergencia</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 font-outfit">Contacto de Emergencia / Representante</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
@@ -329,11 +472,11 @@ export default function NewPatientPage() {
                   value={form.emergency_contact_name}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  placeholder="Juan García"
+                  placeholder="Juan González"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Relación</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parentesco</label>
                 <input
                   name="emergency_contact_relation"
                   type="text"
@@ -359,7 +502,7 @@ export default function NewPatientPage() {
 
           {/* Información clínica */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Información Clínica / Lesión</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 font-outfit">Información Clínica / Lesión</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -397,7 +540,7 @@ export default function NewPatientPage() {
                 />
               </div>
 
-              {/* Historial Clínico y PDF */}
+              {/* Historial Clínico y PDF Adjunto Externo */}
               <div className="md:col-span-2 space-y-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Historial Clínico / Antecedentes</label>
                 {!pdfUrl && (
@@ -407,15 +550,15 @@ export default function NewPatientPage() {
                     onChange={handleChange}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    placeholder="Escribe observaciones clínicas o adjunta la ficha en PDF a continuación..."
+                    placeholder="Escribe observaciones clínicas o adjunta un archivo PDF externo a continuación..."
                   />
                 )}
 
-                {/* Componente PDF Max 5MB */}
+                {/* Componente PDF */}
                 <div className="bg-teal-50/50 p-4 rounded-2xl border border-teal-100 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold text-teal-900 uppercase tracking-wider font-outfit">
-                      📄 Adjuntar Ficha / Historial Clínico en PDF (Máx 5MB - Solo Admin)
+                      📄 Adjuntar Informe Médico Externo / PDF Escaneado
                     </label>
                     {pdfUrl && (
                       <button
@@ -434,7 +577,7 @@ export default function NewPatientPage() {
                     onChange={handlePdfUpload}
                     className="block w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
                   />
-                  <p className="text-[11px] text-teal-700/80">Archivos PDF de hasta 5MB con previsualización en vivo en pantalla.</p>
+                  <p className="text-[11px] text-teal-700/80">Archivos PDF de hasta 15MB con previsualización en vivo en pantalla.</p>
 
                   {pdfUrl && (
                     <div className="mt-3 space-y-2">
