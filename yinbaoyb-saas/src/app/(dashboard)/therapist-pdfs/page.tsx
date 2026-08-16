@@ -34,6 +34,7 @@ import {
   getPdfSubmissions,
   deletePdfTemplate,
   deletePdfSubmission,
+  getPdfCategories,
   type TherapistPdfTemplate,
   type TherapistPdfSubmission,
 } from "@/lib/pdf-storage";
@@ -83,15 +84,20 @@ export default function TherapistPdfsAdminPage() {
   // Búsqueda y Filtros
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [categories, setCategories] = useState<string[]>([]);
 
   const effectiveTenantId = tenantId || "00000000-0000-0000-0000-000000000001";
 
   const loadData = useCallback(async () => {
-    // 1. Cargar plantillas y submissions desde IndexedDB
-    const tpls = await getPdfTemplates(effectiveTenantId);
-    const subs = await getPdfSubmissions(effectiveTenantId);
+    // 1. Cargar plantillas, submissions y categorías
+    const [tpls, subs, cats] = await Promise.all([
+      getPdfTemplates(effectiveTenantId),
+      getPdfSubmissions(effectiveTenantId),
+      getPdfCategories(effectiveTenantId),
+    ]);
     setTemplates(tpls);
     setSubmissions(subs);
+    setCategories(cats);
 
     // 2. Cargar terapeutas de la base de datos
     try {
@@ -372,10 +378,11 @@ export default function TherapistPdfsAdminPage() {
               className="bg-white border border-slate-200 rounded-xl text-xs px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-700"
             >
               <option value="all">Todas las categorías</option>
-              <option value="Evaluación">Evaluación</option>
-              <option value="Fisioterapia">Fisioterapia</option>
-              <option value="Consentimientos">Consentimientos</option>
-              <option value="Seguimiento">Seguimiento</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           )}
         </div>

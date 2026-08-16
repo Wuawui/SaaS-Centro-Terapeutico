@@ -291,3 +291,160 @@ export async function extractPdfPages(
   }
   return `data:application/pdf;base64,${btoa(binary)}`;
 }
+
+/**
+ * Convierte de forma 100% local un archivo Word (.docx / .doc) a formato PDF estructurado y estilizado
+ * Permite visualizar, firmar y asignar documentos de Word como PDFs nativos interactivos.
+ */
+export async function convertWordToPdf(
+  file: File,
+  category = "Documento Oficial",
+  customTitle?: string
+): Promise<{ pdfData: string; pageCount: number; title: string; fileSize: number }> {
+  let rawText = "";
+  try {
+    const mammoth = await import("mammoth");
+    const arrayBuffer = await file.arrayBuffer();
+    const res = await mammoth.extractRawText({ arrayBuffer });
+    rawText = res.value;
+  } catch (err) {
+    console.warn("Mammoth extractRawText fallback to text:", err);
+    try {
+      rawText = await file.text();
+    } catch {
+      rawText = `Documento: ${file.name}\n\nContenido importado desde Word.`;
+    }
+  }
+
+  const docTitle = customTitle || file.name.replace(/\.(docx|doc)$/i, "").replace(/[-_]/g, " ");
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
+  let y = 38;
+
+  const drawHeader = (pageNum: number) => {
+    // Barra superior
+    doc.setFillColor(79, 70, 229); // Indigo 600
+    doc.rect(0, 0, pageWidth, 20, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("CENTRO TERAPÉUTICO YB", margin, 10);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Formato Clínico Oficial • Gestión de Terapias", margin, 15);
+
+    // Badge categoría
+    doc.setFillColor(238, 242, 255);
+    doc.roundedRect(pageWidth - 65, 5, 52, 10, 2, 2, "F");
+    doc.setTextColor(79, 70, 229);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text(category.toUpperCase().slice(0, 20), pageWidth - 39, 11.5, { align: "center" });
+
+    // Pie de página
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(156, 163, 175);
+    doc.text(`Página ${pageNum}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+    doc.text(`Doc: ${file.name}`, margin, pageHeight - 8);
+  };
+
+  drawHeader(1);
+
+  // Título del documento
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text(docTitle, margin, 30);
+
+  doc.setDrawColor(229, 231, 235);
+  doc.setLineWidth(0.5);
+  doc.line(margin, 33, pageWidth - margin, 33);
+
+  // Procesar párrafos
+  const paragraphs = rawText
+    .split(/\r?\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
+  let currentPage = 1;
+
+  for (const para of paragraphs) {
+    const isHeading =
+      para.startsWith("#") ||
+      (para === para.toUpperCase() && para.length < 60) ||
+      /^[I|V|X]+\.\s/i.test(para) ||
+      /^\d+\.\s+[A-ZÁÉÍÓÚ]/i.test(para);
+
+    if (isHeading) {
+      if (y + 16 > pageHeight - 25) {
+        doc.addPage();
+        currentPage++;
+        drawHeader(currentPage);
+        y = 30;
+      }
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      const cleanHeading = para.replace(/^#+\s*/, "");
+      const lines = doc.splitTextToSize(cleanHeading, contentWidth);
+      doc.text(lines, margin, y);
+      y += lines.length * 6 + 2;
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85);
+      const lines = doc.splitTextToSize(para, contentWidth);
+
+      for (const line of lines) {
+        if (y + 6 > pageHeight - 25) {
+          doc.addPage();
+          currentPage++;
+          drawHeader(currentPage);
+          y = 30;
+        }
+        doc.text(line, margin, y);
+        y += 5.5;
+      }
+      y += 2.5; // Espacio entre párrafos
+    }
+  }
+
+  // Sección final de firma si hay espacio o en nueva página
+  if (y + 35 > pageHeight - 25) {
+    doc.addPage();
+    currentPage++;
+    drawHeader(currentPage);
+    y = 35;
+  } else {
+    y += 10;
+  }
+
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.line(pageWidth - 75, y + 18, pageWidth - 15, y + 18);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text("Firma y Sello del Terapeuta / Evaluador", pageWidth - 45, y + 23, { align: "center" });
+
+  const pdfData = doc.output("datauristring");
+  return {
+    pdfData,
+    pageCount: currentPage,
+    title: docTitle,
+    fileSize: Math.round(pdfData.length * 0.75),
+  };
+}

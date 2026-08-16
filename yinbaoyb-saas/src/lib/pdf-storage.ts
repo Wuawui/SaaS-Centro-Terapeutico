@@ -417,3 +417,104 @@ export function getAssignedTemplatesForTherapist(
     return false;
   });
 }
+
+// ── Gestión Dinámica de Categorías de Documentos ──────────────
+
+export const DEFAULT_PDF_CATEGORIES = [
+  "Evaluación Inicial",
+  "Fisioterapia / Rehabilitación",
+  "Consentimientos y Autorizaciones",
+  "Seguimiento y Evolución",
+  "Terapia de Lenguaje",
+  "Terapia Ocupacional",
+  "Informes Generales",
+];
+
+export async function getPdfCategories(tenantId?: string): Promise<string[]> {
+  try {
+    const res = await fetch("/api/therapist-pdfs/categories");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.categories) && data.categories.length > 0) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("system_pdf_categories", JSON.stringify(data.categories));
+        }
+        return data.categories;
+      }
+    }
+  } catch (e) {
+    console.warn("Error fetching categories from API, using local cache:", e);
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const local = localStorage.getItem("system_pdf_categories");
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+  }
+  return DEFAULT_PDF_CATEGORIES;
+}
+
+export async function addPdfCategory(name: string, tenantId?: string): Promise<string[]> {
+  const clean = name.trim();
+  if (!clean) return DEFAULT_PDF_CATEGORIES;
+
+  try {
+    const res = await fetch("/api/therapist-pdfs/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: clean }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.categories)) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("system_pdf_categories", JSON.stringify(data.categories));
+        }
+        return data.categories;
+      }
+    }
+  } catch (e) {
+    console.warn("Error saving category via API:", e);
+  }
+
+  // Fallback local
+  let current = await getPdfCategories(tenantId);
+  if (!current.includes(clean)) {
+    current = [...current, clean];
+    if (typeof window !== "undefined") {
+      localStorage.setItem("system_pdf_categories", JSON.stringify(current));
+    }
+  }
+  return current;
+}
+
+export async function deletePdfCategory(name: string, tenantId?: string): Promise<string[]> {
+  try {
+    const res = await fetch(`/api/therapist-pdfs/categories?name=${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.categories)) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("system_pdf_categories", JSON.stringify(data.categories));
+        }
+        return data.categories;
+      }
+    }
+  } catch (e) {
+    console.warn("Error deleting category via API:", e);
+  }
+
+  // Fallback local
+  let current = await getPdfCategories(tenantId);
+  const filtered = current.filter((c) => c !== name);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("system_pdf_categories", JSON.stringify(filtered));
+  }
+  return filtered;
+}
