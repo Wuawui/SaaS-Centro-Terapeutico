@@ -251,6 +251,9 @@ export default function UsersPage() {
                 <option value="padre">👨‍👩‍👧 Padre/Acudiente</option>
                 <option value="terapeuta">👩‍⚕️ Terapeuta (Integral / Atención Temprana)</option>
                 <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física)</option>
+                <option value="coordinador">📋 Coordinador/a Clínico</option>
+                <option value="director">👔 Director/a de Sede</option>
+                <option value="admin">🛡️ Administrador del Sistema</option>
               </select>
             </div>
             <div className="md:col-span-2 flex justify-end gap-3 mt-2">
@@ -265,7 +268,7 @@ export default function UsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="overflow-x-auto scrollbar-none">
           <div className="flex bg-gray-100 rounded-lg p-0.5 min-w-max">
-            {(["all", "paciente", "padre", "terapeuta", "fisioterapeuta"] as const).map(f => (
+            {(["all", "paciente", "padre", "terapeuta", "fisioterapeuta", "coordinador", "director", "admin"] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${filter === f ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
                 {f === "all" ? `Todos (${users.length})` : roleLabels[f] || f}
               </button>
@@ -436,6 +439,9 @@ export default function UsersPage() {
                     <option value="padre">👨‍👩‍👧 Padre/Acudiente</option>
                     <option value="terapeuta">👩‍⚕️ Terapeuta (Integral / Atención Temprana)</option>
                     <option value="fisioterapeuta">🏃 Fisioterapeuta (Terapia Física)</option>
+                    <option value="coordinador">📋 Coordinador/a Clínico</option>
+                    <option value="director">👔 Director/a de Sede</option>
+                    <option value="admin">🛡️ Administrador del Sistema</option>
                   </select>
                 </div>
                 <div>

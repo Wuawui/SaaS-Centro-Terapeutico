@@ -128,15 +128,22 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
       profiles: profile || null,
     };
 
-    const isPhysio = profile?.role === "terapeuta" && (
-      (tData.specialty || "").toLowerCase().includes("fisio") ||
-      (tData.specialty || "").toLowerCase().includes("fisica") ||
-      (tData.specialty || "").toLowerCase().includes("física")
-    );
+    const profileRole = profile?.role || "terapeuta";
+    const specLower = (tData.specialty || "").toLowerCase();
+    const isPhysio = (profileRole === "terapeuta" && (
+      specLower.includes("fisio") ||
+      specLower.includes("fisica") ||
+      specLower.includes("física") ||
+      specLower.includes("kinesio")
+    ));
+
+    const effectiveRole = ["director", "coordinador", "super_admin", "admin"].includes(profileRole)
+      ? profileRole
+      : (isPhysio ? "fisioterapeuta" : (profileRole === "terapeuta" ? "terapeuta" : profileRole));
 
     setTherapist(combined as unknown as TherapistData);
     setForm({
-      role: isPhysio ? "fisioterapeuta" : (profile?.role || "terapeuta"),
+      role: effectiveRole,
       avatar_url: profile?.avatar_url || "",
       specialty: tData.specialty || "",
       license_number: tData.license_number || "",
@@ -168,9 +175,19 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
+      const isPhysio = form.role === "fisioterapeuta";
+      let cleanSpecialty = (form.specialty || "").trim();
+      if (isPhysio) {
+        cleanSpecialty = cleanSpecialty || "Terapia Física / Fisioterapia";
+      } else if (form.role === "terapeuta" && (!cleanSpecialty || cleanSpecialty.toLowerCase().includes("fisio"))) {
+        cleanSpecialty = "Terapia Integral";
+      } else if (form.role === "coordinador" || form.role === "director") {
+        cleanSpecialty = cleanSpecialty || (form.role === "coordinador" ? "Coordinación Clínica" : "Dirección");
+      }
+
       // 1. Actualizar datos de terapeuta
       const { error: err1 } = await supabase.from("therapists").update({
-        specialty: form.role === "fisioterapeuta" && !form.specialty ? "Terapia Física / Fisioterapia" : (form.specialty || null),
+        specialty: cleanSpecialty || null,
         license_number: form.license_number || null,
         max_patients: form.max_patients,
         therapeutic_approach: form.therapeutic_approach.length > 0 ? form.therapeutic_approach : null,
@@ -190,7 +207,7 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
           id: id,
           phone: form.phone || null,
           role: form.role,
-          specialty: form.specialty || (form.role === "fisioterapeuta" ? "Terapia Física / Fisioterapia" : undefined),
+          specialty: cleanSpecialty,
           license_number: form.license_number || undefined,
           avatar_url: form.avatar_url || null,
         }),
@@ -527,7 +544,20 @@ export default function TherapistDetailPage({ params }: { params: Promise<{ id: 
                     <label className="block text-sm font-medium text-gray-700 mb-1">Rol / Especialidad Principal</label>
                     <select 
                       value={form.role} 
-                      onChange={e => setForm({...form, role: e.target.value})} 
+                      onChange={e => {
+                        const newRole = e.target.value;
+                        let autoSpec = form.specialty;
+                        if (newRole === "fisioterapeuta") {
+                          autoSpec = "Terapia Física / Fisioterapia";
+                        } else if (newRole === "terapeuta" && (!form.specialty || form.specialty.toLowerCase().includes("fisio"))) {
+                          autoSpec = "Terapia Integral";
+                        } else if (newRole === "coordinador" && (!form.specialty || form.specialty.toLowerCase().includes("fisio"))) {
+                          autoSpec = "Coordinación Clínica";
+                        } else if (newRole === "director" && (!form.specialty || form.specialty.toLowerCase().includes("fisio"))) {
+                          autoSpec = "Dirección de Sede";
+                        }
+                        setForm({ ...form, role: newRole, specialty: autoSpec });
+                      }} 
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium"
                     >
                       <option value="terapeuta">👩‍⚕️ Terapeuta (Integral / Atención Temprana)</option>
