@@ -9,7 +9,20 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Rutas protegidas por tipo
-const adminPaths = ["/dashboard", "/patients", "/agenda", "/clinical", "/settings", "/therapists", "/users", "/reports", "/notifications"];
+const adminPaths = [
+  "/dashboard",
+  "/patients",
+  "/agenda",
+  "/clinical",
+  "/settings",
+  "/therapists",
+  "/therapist-pdfs",
+  "/users",
+  "/reports",
+  "/notifications",
+  "/ai-reports",
+  "/backups"
+];
 const parentPaths = ["/parent"];
 const therapistPaths = ["/therapist"];
 const allProtectedPaths = [...adminPaths, ...parentPaths, ...therapistPaths];
@@ -179,11 +192,18 @@ async function _updateSessionInternal(request: NextRequest) {
 
     // Role-based access control
     const isOnAdminPath = adminPaths.some(p => request.nextUrl.pathname.startsWith(p));
+    const isOnTherapistPath = therapistPaths.some(p => request.nextUrl.pathname.startsWith(p));
 
-    if (role === "padre" && isOnAdminPath) {
+    if (role === "padre" && (isOnAdminPath || isOnTherapistPath)) {
       return redirectWithCookies("/parent");
     }
     if ((role === "terapeuta" || role === "fisioterapeuta") && isOnAdminPath) {
+      if (request.nextUrl.pathname.startsWith("/clinical")) {
+        return redirectWithCookies("/therapist/clinical");
+      }
+      if (request.nextUrl.pathname.startsWith("/therapist-pdfs")) {
+        return redirectWithCookies("/therapist/pdf-forms");
+      }
       return redirectWithCookies("/therapist");
     }
   }

@@ -218,6 +218,7 @@ export const ADMIN_NAV: NavItem[] = [
   { name: "Agenda", href: "/agenda", icon: CalendarDays, section: "Principal", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
   // ── CLÍNICA
   { name: "Pacientes", href: "/patients", icon: Users, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
+  { name: "Auditoría Clínica", href: "/clinical", icon: ClipboardList, section: "Clínica", roles: ["super_admin", "director", "coordinador", "admin"] },
   { name: "Terapeutas", href: "/therapists", icon: UserCog, section: "Clínica", roles: ["super_admin", "director", "coordinador", "admin"] },
   { name: "PDF Terapeutas", href: "/therapist-pdfs", icon: FileText, section: "Clínica", roles: ["super_admin", "director", "coordinador", "terapeuta", "fisioterapeuta", "admin"] },
   // ── ADMINISTRACIÓN
