@@ -156,6 +156,16 @@ export default function NewPatientPage() {
       ? `${areaLabel} ${form.reason_for_consultation}`
       : areaLabel;
 
+    // Normalizar género a las claves de constraint ('M', 'F', 'O', 'X' o null)
+    let sanitizedGender: "M" | "F" | "O" | "X" | null = null;
+    if (form.gender) {
+      const g = form.gender.trim().toUpperCase();
+      if (g === "M" || g === "MASCULINO" || g === "MALE") sanitizedGender = "M";
+      else if (g === "F" || g === "FEMENINO" || g === "FEMALE") sanitizedGender = "F";
+      else if (g === "O" || g === "OTRO" || g === "OTHER") sanitizedGender = "O";
+      else if (g === "X" || g === "NO DICE") sanitizedGender = "X";
+    }
+
     const { data: newPat, error: insertError } = await supabase
       .from("patients")
       .insert({
@@ -165,7 +175,7 @@ export default function NewPatientPage() {
         emergency_contact: form.avatar_url || null,
         document_number: form.document_number || null,
         birth_date: form.birth_date || null,
-        gender: form.gender || null,
+        gender: sanitizedGender,
         phone: form.phone || null,
         email: form.email || null,
         address: form.address || null,
@@ -416,12 +426,13 @@ export default function NewPatientPage() {
                   name="gender"
                   value={form.gender}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 >
                   <option value="">Seleccionar...</option>
-                  <option value="femenino">Femenino</option>
-                  <option value="masculino">Masculino</option>
-                  <option value="otro">Otro</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                  <option value="O">Otro</option>
+                  <option value="X">No especificado</option>
                 </select>
               </div>
               <div>
